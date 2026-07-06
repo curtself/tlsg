@@ -3,6 +3,9 @@ package certsvc
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/ecdsa"
+	"crypto/ecdh"
+	"crypto/ed25519"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -259,11 +262,16 @@ func (c *CertificateService) FinishCSR(opts options.FinishOptions) (*models.PFXd
 	}
 
 	// Parse private key
-	privKey, err := parseRSAPrivateKey(keyBytes)
+	var privKey any
+	privKey, err = parseRSAPrivateKey(keyBytes)
 	if err != nil {
-		dto.CreateMessage = fmt.Sprintf("Failed to parse private key: %v", err)
-		dto.OpCode = 1005
-		return dto, nil
+		// try to parse key as PKCS8 instead
+		privKey, err = parseOtherPrivateKey(keyBytes)
+		if err != nil {
+			dto.CreateMessage = fmt.Sprintf("Failed to parse any key from file: %v", err)
+			dto.OpCode = 1005
+			return dto, nil
+		}
 	}
 
 	// Build certificate chain (if the --chain flag is set)
@@ -370,6 +378,14 @@ func parseRSAPrivateKey(keyData []byte) (*rsa.PrivateKey, error) {
 	return x509.ParsePKCS1PrivateKey(block.Bytes)
 }
 
+func parseOtherPrivateKey(keyData []byte) (any, error) {
+	block, _ := pem.Decode(keyData)
+	if block == nil || block.Type != "PRIVATE KEY" {
+		return nil, errors.New("invalid private key")
+	}
+	return x509.ParsePKCS8PrivateKey(block.Bytes);
+}
+
 func findEndEntityCert(certs []*x509.Certificate) *x509.Certificate {
 	for _, cert := range certs {
 		isIssuer := false
@@ -390,11 +406,19 @@ func isSelfSigned(cert *x509.Certificate) bool {
 	return cert.Issuer.String() == cert.Subject.String()
 }
 
-func encodeToPFX(certs []*x509.Certificate, key *rsa.PrivateKey, password string) ([]byte, error) {
+func encodeToPFX(certs []*x509.Certificate, key any, password string) ([]byte, error) {
 	// This requires Go's x/crypto/pkcs12 package
 	// go get golang.org/x/crypto/pkcs12
 	// the above line uses the 'legacy' encoder and is considered 'unsafe' (not sure why it is presented like it is the default)
 	//return pkcs12.Encode(rand.Reader, key, certs[0], certs[1:], password)
+	switch key.(type) {
+		case *rsa.PrivateKey:
+		case *ecdsa.PrivateKey:
+		case ed25519.PrivateKey:
+		case *ecdh.PrivateKey:
+		default:
+		    return nil, fmt.Errorf("unsupported private key type %T", key)
+	}
 	if len(certs) == 1 {
 		return pkcs12.Modern2023.Encode(key, certs[0], nil, password)
 	} else {
