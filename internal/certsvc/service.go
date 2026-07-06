@@ -1,11 +1,11 @@
 package certsvc
 
 import (
+	"crypto/ecdh"
+	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/ecdsa"
-	"crypto/ecdh"
-	"crypto/ed25519"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -66,7 +66,7 @@ func (c *CertificateService) CreateCSR(opts options.CreateOptions) (*models.CSRd
 	subj := pkix.Name{
 		CommonName:         opts.CommonName,
 		Organization:       []string{"San Diego Community College District"},
-		OrganizationalUnit: []string{"It"},
+		OrganizationalUnit: []string{"IT"},
 		Country:            []string{"US"},
 		Province:           []string{"California"},
 		Locality:           []string{"San Diego"},
@@ -148,7 +148,7 @@ func (c *CertificateService) SaveCSRdto(dto *models.CSRdto) ([]string, error) {
 		check(err)
 		logs = append(logs, fmt.Sprintf("wrote %d bytes to %s", keyByteCount, keyFile))
 	}
-	return logs,nil
+	return logs, nil
 }
 
 func (c *CertificateService) SavePFXdto(dto *models.PFXdto) ([]string, error) {
@@ -166,7 +166,7 @@ func (c *CertificateService) SavePFXdto(dto *models.PFXdto) ([]string, error) {
 	check(err)
 	logs = append(logs, fmt.Sprintf("wrote %d bytes to %s\n", byteCount, pfxFile))
 
-	return logs,nil
+	return logs, nil
 }
 
 /*
@@ -383,7 +383,7 @@ func parseOtherPrivateKey(keyData []byte) (any, error) {
 	if block == nil || block.Type != "PRIVATE KEY" {
 		return nil, errors.New("invalid private key")
 	}
-	return x509.ParsePKCS8PrivateKey(block.Bytes);
+	return x509.ParsePKCS8PrivateKey(block.Bytes)
 }
 
 func findEndEntityCert(certs []*x509.Certificate) *x509.Certificate {
@@ -412,12 +412,12 @@ func encodeToPFX(certs []*x509.Certificate, key any, password string) ([]byte, e
 	// the above line uses the 'legacy' encoder and is considered 'unsafe' (not sure why it is presented like it is the default)
 	//return pkcs12.Encode(rand.Reader, key, certs[0], certs[1:], password)
 	switch key.(type) {
-		case *rsa.PrivateKey:
-		case *ecdsa.PrivateKey:
-		case ed25519.PrivateKey:
-		case *ecdh.PrivateKey:
-		default:
-		    return nil, fmt.Errorf("unsupported private key type %T", key)
+	case *rsa.PrivateKey:
+	case *ecdsa.PrivateKey:
+	case ed25519.PrivateKey:
+	case *ecdh.PrivateKey:
+	default:
+		return nil, fmt.Errorf("unsupported private key type %T", key)
 	}
 	if len(certs) == 1 {
 		return pkcs12.Modern2023.Encode(key, certs[0], nil, password)
@@ -524,7 +524,7 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error)
 					}
 					//fmt.Println(strings.Repeat("-", 92))
 					//fmt.Println("Chain summary")
-					logs = append(logs, strings.Repeat("-",92))
+					logs = append(logs, strings.Repeat("-", 92))
 					logs = append(logs, "Chain summary")
 					logs = append(logs, certinfo.LogChainSummary(certs)...)
 					/*
@@ -548,9 +548,9 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error)
 					}
 					//fmt.Println(strings.Repeat("-", 92))
 					//fmt.Println("Chain summary")
-					logs = append( logs, strings.Repeat("-", 92))
-					logs = append( logs, "Chain summary")
-					logs = append( logs, certinfo.LogChainSummary(certs)...)
+					logs = append(logs, strings.Repeat("-", 92))
+					logs = append(logs, "Chain summary")
+					logs = append(logs, certinfo.LogChainSummary(certs)...)
 					/*
 						for i, cert := range certs {
 							certinfo.LogCertSummary(cert, i)
