@@ -7,8 +7,8 @@ import (
 )
 
 var (
-	OIDAuthorityInfoAccess = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 1, 1}
-	OIDAccessMethodOCSP    = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 48, 1}
+	OIDAuthorityInfoAccess   = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 1, 1}
+	OIDAccessMethodOCSP      = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 48, 1}
 	OIDAccessMethodCAIssuers = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 48, 2}
 )
 
@@ -19,14 +19,14 @@ var knownAccessMethods = map[string]string{
 }
 
 type accessDescriptionRaw struct {
-	Method		asn1.ObjectIdentifier
-	Location	asn1.RawValue
+	Method   asn1.ObjectIdentifier
+	Location asn1.RawValue
 }
 
 // AccessDescription mirrors RFC 5280
 type AccessDescription struct {
-	Method   asn1.ObjectIdentifier
-	URI string
+	Method asn1.ObjectIdentifier
+	URI    string
 }
 
 // AuthorityInfoAccessSyntax as defined in RFC 5280
@@ -59,6 +59,3 @@ func FriendlyAccessMethod(oid asn1.ObjectIdentifier) string {
 	}
 	return "Unknown OID (" + oid.String() + ")"
 }
-
-
-

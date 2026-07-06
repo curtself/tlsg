@@ -95,4 +95,3 @@ func SortCertificateChain(certs []*x509.Certificate) ([]*x509.Certificate, error
 
 	return sorted, nil
 }
-

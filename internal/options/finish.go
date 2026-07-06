@@ -4,17 +4,18 @@ import (
 	"errors"
 	"os"
 )
+
 type FinishOptions struct {
-    Certificate 	string
-	Key        		string
-	PfxFile			string
-	Password		string
-	Chain			bool
-	IncludeRoot		bool
-	Verbose			bool
+	Certificate string
+	Key         string
+	PfxFile     string
+	Password    string
+	Chain       bool
+	IncludeRoot bool
+	Verbose     bool
 }
 
-func (opts* FinishOptions) Validate() error {
+func (opts *FinishOptions) Validate() error {
 	if opts.Certificate == "" {
 		return errors.New("Certificate file (-c) is required")
 	}

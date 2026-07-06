@@ -1,14 +1,13 @@
 /*
 Copyright © 2025 Curt Self <curtself.cs@gmail.com>
-
 */
 package cmd
 
 import (
 	"fmt"
 	"github.com/spf13/cobra"
-	"ssl-tools/internal/options"
 	"ssl-tools/internal/certsvc"
+	"ssl-tools/internal/options"
 )
 
 var finishOpts options.FinishOptions
@@ -50,12 +49,11 @@ func init() {
 	finishCmd.Flags().StringVar(&finishOpts.Password, "password", "", "Password for PFX file (required)")
 	finishCmd.Flags().BoolVar(&finishOpts.Chain, "chain", false, "Include the certificate chain (optional)")
 	finishCmd.Flags().BoolVar(&finishOpts.IncludeRoot, "include-root", false, "Include the root certificate(s) in the chain (optional)")
-	finishCmd.Flags().BoolVarP(&finishOpts.Verbose,"verbose", "v", false, "Verbose output")
+	finishCmd.Flags().BoolVarP(&finishOpts.Verbose, "verbose", "v", false, "Verbose output")
 	finishCmd.MarkFlagRequired("certificate")
 	finishCmd.MarkFlagRequired("key")
 	// password is checked via the Validate() function. It can come from cli or environment variable
 	// additionally, the flag --include-root can only be enabled if --chain is enabled
 	rootCmd.AddCommand(finishCmd)
-
 
 }

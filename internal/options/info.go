@@ -4,16 +4,17 @@ import (
 	"errors"
 	"os"
 )
+
 type InfoOptions struct {
-    Certificates	[]string
-    URLs       		[]string
-	Hosts			map[string]string
-    CSR		        string
-	ShortSummary	bool
-	Password		string
+	Certificates []string
+	URLs         []string
+	Hosts        map[string]string
+	CSR          string
+	ShortSummary bool
+	Password     string
 }
 
-func (opts* InfoOptions) Validate() error {
+func (opts *InfoOptions) Validate() error {
 	certCount := len(opts.Certificates)
 	urlCount := len(opts.URLs)
 	hostCount := len(opts.Hosts)
@@ -22,7 +23,7 @@ func (opts* InfoOptions) Validate() error {
 	if hasCsr {
 		csrCount = 1
 	}
-	if certCount + urlCount + hostCount +csrCount == 0 {
+	if certCount+urlCount+hostCount+csrCount == 0 {
 		return errors.New("you must provide at least one certificate, url, host, or CSR")
 	}
 	if opts.Password == "" {

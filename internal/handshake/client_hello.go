@@ -112,13 +112,12 @@ func BuildClientHello(host string) []byte {
 	packet.Write(clientHelloMessageBytes)
 	// write the hello to file for inspection
 	/*
-	err := os.WriteFile("client_hello_dump.bin", packet.Bytes(), 0644)
-	if err != nil {
-		fmt.Printf("Failed to save unknown TLS variant to file: %v\n", err)
-	} else {
-		fmt.Printf("Saved hello packet to client_hello_dump.bin (%d bytes)\n", len(packet.Bytes()))
-	}
+		err := os.WriteFile("client_hello_dump.bin", packet.Bytes(), 0644)
+		if err != nil {
+			fmt.Printf("Failed to save unknown TLS variant to file: %v\n", err)
+		} else {
+			fmt.Printf("Saved hello packet to client_hello_dump.bin (%d bytes)\n", len(packet.Bytes()))
+		}
 	*/
 	return packet.Bytes()
 }
-

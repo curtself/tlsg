@@ -2,14 +2,16 @@
 package cmd
 
 import (
-	"os"
 	"github.com/spf13/cobra"
+	"os"
+	"ssl-tools/internal/version"
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "ssl-tools",
-	Short: "Certificate and CSR helper utility",
+	Use:     "ssl-tools",
+	Short:   "Certificate and CSR helper utility",
+	Version: version.Version,
 	Long: `A certificate and CSR helper utility to make life easier.
 
 This is the Go port of the original C# project by the same name.

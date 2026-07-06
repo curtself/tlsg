@@ -67,11 +67,9 @@ func LogCertInfo(cert *x509.Certificate) []string {
 			//log.Printf("SKID%s: %s", criticalSuffix(isCritical), hex.EncodeToString(cert.SubjectKeyId))
 			logs = append(logs, fmt.Sprintf("SKID%s: %s", criticalSuffix(isCritical), hex.EncodeToString(cert.SubjectKeyId)))
 
-
 		case "2.5.29.35": // Authority Key Identifier
 			//log.Printf("AKID%s: %s", criticalSuffix(isCritical), hex.EncodeToString(cert.AuthorityKeyId))
 			logs = append(logs, fmt.Sprintf("AKID%s: %s", criticalSuffix(isCritical), hex.EncodeToString(cert.AuthorityKeyId)))
-
 
 		case "2.5.29.17": // Subject Alternative Name
 			//log.Printf("%s", extName)
@@ -85,11 +83,10 @@ func LogCertInfo(cert *x509.Certificate) []string {
 			//log.Printf("%s: %s", extName, keyUsageString(cert.KeyUsage))
 			logs = append(logs, fmt.Sprintf("%s: %s", extName, keyUsageString(cert.KeyUsage)))
 
-
 		case "2.5.29.37": // Extended Key Usage
 			//log.Printf("%s: %s", extName, extKeyUsageString(cert.ExtKeyUsage))
 			logs = append(logs, fmt.Sprintf("%s: %s", extName, extKeyUsageString(cert.ExtKeyUsage)))
-	
+
 		case "1.3.6.1.5.5.7.1.1": // AIA
 			aia, err := x509extras.ParseAIA(ext.Value)
 			if err == nil {
@@ -109,7 +106,7 @@ func LogCertInfo(cert *x509.Certificate) []string {
 	}
 
 	//log.Println()
-	logs = append(logs, "" )
+	logs = append(logs, "")
 	return logs
 }
 

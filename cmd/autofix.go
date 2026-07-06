@@ -1,12 +1,11 @@
 /*
 Copyright © 2025 Curt Self <curtself.cs@gmail.com>
-
 */
 package cmd
 
 import (
-	"fmt"
 	"errors"
+	"fmt"
 	"github.com/spf13/cobra"
 )
 
