@@ -165,6 +165,7 @@ func (c *CertificateService) SavePFXdto(dto *models.PFXdto) ([]string, error) {
 	byteCount, err := f.Write(dto.CertificateData)
 	check(err)
 	logs = append(logs, fmt.Sprintf("wrote %d bytes to %s\n", byteCount, pfxFile))
+	logs = append(logs, fmt.Sprintf("PFX creation message: %s\n", dto.CreateMessage))
 
 	return logs, nil
 }
@@ -261,17 +262,11 @@ func (c *CertificateService) FinishCSR(opts options.FinishOptions) (*models.PFXd
 		return dto, nil
 	}
 
-	// Parse private key
-	var privKey any
-	privKey, err = parseRSAPrivateKey(keyBytes)
+	privKey, err := parsePrivateKey(keyBytes)
 	if err != nil {
-		// try to parse key as PKCS8 instead
-		privKey, err = parseOtherPrivateKey(keyBytes)
-		if err != nil {
-			dto.CreateMessage = fmt.Sprintf("Failed to parse any key from file: %v", err)
-			dto.OpCode = 1005
-			return dto, nil
-		}
+		dto.CreateMessage = fmt.Sprintf("Failed to parse private key: %v", err)
+		dto.OpCode = 1005
+		return dto, nil
 	}
 
 	// Build certificate chain (if the --chain flag is set)
@@ -370,21 +365,28 @@ func parsePEMCerts(pemData []byte) ([]*x509.Certificate, error) {
 	return certs, nil
 }
 
-func parseRSAPrivateKey(keyData []byte) (*rsa.PrivateKey, error) {
+func parsePrivateKey(keyData []byte) (any, error) {
 	block, _ := pem.Decode(keyData)
-	if block == nil || block.Type != "RSA PRIVATE KEY" {
-		return nil, errors.New("invalid PEM RSA private key")
+	if block == nil {
+		return nil, errors.New("invalid PEM private key")
 	}
-	return x509.ParsePKCS1PrivateKey(block.Bytes)
+
+	switch block.Type {
+	case "RSA PRIVATE KEY":
+		return x509.ParsePKCS1PrivateKey(block.Bytes)
+
+	case "EC PRIVATE KEY":
+		return x509.ParseECPrivateKey(block.Bytes)
+
+	case "PRIVATE KEY":
+		// PKCS#8 (RSA, EC, Ed25519, etc.)
+		return x509.ParsePKCS8PrivateKey(block.Bytes)
+
+	default:
+		return nil, fmt.Errorf("unsupported private key type: %s", block.Type)
+	}
 }
 
-func parseOtherPrivateKey(keyData []byte) (any, error) {
-	block, _ := pem.Decode(keyData)
-	if block == nil || block.Type != "PRIVATE KEY" {
-		return nil, errors.New("invalid private key")
-	}
-	return x509.ParsePKCS8PrivateKey(block.Bytes)
-}
 
 func findEndEntityCert(certs []*x509.Certificate) *x509.Certificate {
 	for _, cert := range certs {
