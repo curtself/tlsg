@@ -3,6 +3,8 @@ package handshake
 import (
 	"crypto/x509"
 	"errors"
+	//"fmt"
+	//"os"
 )
 
 type CheckVariantOptions struct {
@@ -50,7 +52,7 @@ func checkVariantInternal(data []byte, options CheckVariantOptions) VariantInfo 
 	headMarker := indexOf(data, 0x16, 1) // skip first byte
 	headParseAttempts := 0
 
-	if !options.ForceVariant {
+	if ! options.ForceVariant {
 		for headMarker != -1 {
 			if headParseAttempts > 60 || headMarker+5 >= len(data) {
 				break
@@ -134,13 +136,13 @@ func parseCertificatesWithVariant(data []byte, variant VariantInfo) ([]*x509.Cer
 
 	default:
 		/*
-			// Save the raw data to a file for debugging
-			err := os.WriteFile("server_hello_dump.bin", data, 0644)
-			if err != nil {
-				fmt.Printf("Failed to save unknown TLS variant to file: %v\n", err)
-			} else {
-				fmt.Printf("Saved unknown TLS response to server_hello_dump.bin (%d bytes)\n", len(data))
-			}
+		// Save the raw data to a file for debugging
+		err := os.WriteFile("server_hello_dump.bin", data, 0644)
+		if err != nil {
+			fmt.Printf("Failed to save unknown TLS variant to file: %v\n", err)
+		} else {
+			fmt.Printf("Saved unknown TLS response to server_hello_dump.bin (%d bytes)\n", len(data))
+		}
 		*/
 		return nil, errors.New("unknown TLS variant; no certs parsed")
 	}
@@ -166,3 +168,4 @@ func parseCertificatesWithVariant(data []byte, variant VariantInfo) ([]*x509.Cer
 
 	return certs, nil
 }
+
