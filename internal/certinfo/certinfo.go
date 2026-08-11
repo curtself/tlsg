@@ -9,36 +9,46 @@ import (
 	"encoding/asn1"
 	"encoding/hex"
 	"fmt"
-	"log"
+	//"log"
 	"ssl-tools/internal/x509extras"
 	"strings"
 )
 
-func LogCertSummary(cert *x509.Certificate, index int) {
-	log.SetFlags(0)
-	log.Printf("[%d] %s", index, cert.Subject.CommonName)
+func LogCertSummary(cert *x509.Certificate, index int) string {
+	//log.SetFlags(0)
+	//log.Printf("[%d] %s", index, cert.Subject.CommonName)
+	return fmt.Sprintf("[%d] %s", index, cert.Subject.CommonName)
 }
 
-func LogChainSummary(chain []*x509.Certificate) {
-	log.SetFlags(0)
+func LogChainSummary(chain []*x509.Certificate) []string {
+	//log.SetFlags(0)
+	var logs []string
 	for i, cert := range chain {
-		LogCertSummary(cert, i)
+		logs = append(logs, LogCertSummary(cert, i))
 	}
-
+	return logs
 }
 
 // LogCertInfo prints details of the given certificate
-func LogCertInfo(cert *x509.Certificate) {
-	log.SetFlags(0)
-	log.Println(strings.Repeat("-", 92))
+func LogCertInfo(cert *x509.Certificate) []string {
+	//log.SetFlags(0)
+	var logs []string
+	//log.Println(strings.Repeat("-", 92))
+	logs = append(logs, strings.Repeat("-", 92))
 	if cert.Subject.CommonName != "" {
-		log.Printf("Simple Name: %s", cert.Subject.CommonName)
+		//log.Printf("Simple Name: %s", cert.Subject.CommonName)
+		logs = append(logs, fmt.Sprintf("Simple Name: %s", cert.Subject.CommonName))
 	}
-	log.Printf("Date: %s - %s", cert.NotBefore.Local().Format("01/02/2006 15:04:05"), cert.NotAfter.Local().Format("01/02/2006 15:04:05"))
-	log.Printf("Issuer: %s", cert.Issuer.CommonName)
-	log.Printf("Issuer DN: %s", cert.Issuer.String())
-	log.Printf("Serial Number: %s", cert.SerialNumber.String())
-	log.Printf("Thumbprint: %X", certFingerprintSHA1(cert))
+	logs = append(logs, fmt.Sprintf("Date: %s - %s", cert.NotBefore.Local().Format("01/02/2006 15:04:05"), cert.NotAfter.Local().Format("01/02/2006 15:04:05")))
+	logs = append(logs, fmt.Sprintf("Issuer: %s", cert.Issuer.CommonName))
+	logs = append(logs, fmt.Sprintf("Issuer DN: %s", cert.Issuer.String()))
+	logs = append(logs, fmt.Sprintf("Serial Number: %s", cert.SerialNumber.String()))
+	logs = append(logs, fmt.Sprintf("Thumbprint: %X", certFingerprintSHA1(cert)))
+	//log.Printf("Date: %s - %s", cert.NotBefore.Local().Format("01/02/2006 15:04:05"), cert.NotAfter.Local().Format("01/02/2006 15:04:05"))
+	//log.Printf("Issuer: %s", cert.Issuer.CommonName)
+	//log.Printf("Issuer DN: %s", cert.Issuer.String())
+	//log.Printf("Serial Number: %s", cert.SerialNumber.String())
+	//log.Printf("Thumbprint: %X", certFingerprintSHA1(cert))
 
 	for _, ext := range cert.Extensions {
 		oid := ext.Id.String()
@@ -50,56 +60,77 @@ func LogCertInfo(cert *x509.Certificate) {
 
 		switch oid {
 		case "2.5.29.19": // Basic Constraints
-			log.Printf("%s: CA=%v", extName, cert.IsCA)
+			//log.Printf("%s: CA=%v", extName, cert.IsCA)
+			logs = append(logs, fmt.Sprintf("%s: CA=%v", extName, cert.IsCA))
 
 		case "2.5.29.14": // Subject Key Identifier
-			log.Printf("SKID%s: %s", criticalSuffix(isCritical), hex.EncodeToString(cert.SubjectKeyId))
+			//log.Printf("SKID%s: %s", criticalSuffix(isCritical), hex.EncodeToString(cert.SubjectKeyId))
+			logs = append(logs, fmt.Sprintf("SKID%s: %s", criticalSuffix(isCritical), hex.EncodeToString(cert.SubjectKeyId)))
 
 		case "2.5.29.35": // Authority Key Identifier
-			log.Printf("AKID%s: %s", criticalSuffix(isCritical), hex.EncodeToString(cert.AuthorityKeyId))
+			//log.Printf("AKID%s: %s", criticalSuffix(isCritical), hex.EncodeToString(cert.AuthorityKeyId))
+			logs = append(logs, fmt.Sprintf("AKID%s: %s", criticalSuffix(isCritical), hex.EncodeToString(cert.AuthorityKeyId)))
 
 		case "2.5.29.17": // Subject Alternative Name
-			log.Printf("%s", extName)
+			//log.Printf("%s", extName)
+			logs = append(logs, fmt.Sprintf("%s", extName))
 			for _, dns := range cert.DNSNames {
-				log.Printf("  DNS: %s", dns)
+				//log.Printf("  DNS: %s", dns)
+				logs = append(logs, fmt.Sprintf("  DNS: %s", dns))
 			}
 
 		case "2.5.29.15": // Key Usage
-			log.Printf("%s: %s", extName, keyUsageString(cert.KeyUsage))
+			//log.Printf("%s: %s", extName, keyUsageString(cert.KeyUsage))
+			logs = append(logs, fmt.Sprintf("%s: %s", extName, keyUsageString(cert.KeyUsage)))
 
 		case "2.5.29.37": // Extended Key Usage
-			log.Printf("%s: %s", extName, extKeyUsageString(cert.ExtKeyUsage))
+			//log.Printf("%s: %s", extName, extKeyUsageString(cert.ExtKeyUsage))
+			logs = append(logs, fmt.Sprintf("%s: %s", extName, extKeyUsageString(cert.ExtKeyUsage)))
+
 		case "1.3.6.1.5.5.7.1.1": // AIA
 			aia, err := x509extras.ParseAIA(ext.Value)
 			if err == nil {
-				log.Printf("%s", getFriendlyName(oid)) // still works
+				//log.Printf("%s", getFriendlyName(oid)) // still works
+				//logs = append(logs, fmt.Sprintf("%s", getFriendlyName(oid)))
 				for _, ad := range aia {
-					log.Printf("  %s: %s", x509extras.FriendlyAccessMethod(ad.Method), ad.URI)
+					//log.Printf("  %s: %s", x509extras.FriendlyAccessMethod(ad.Method), ad.URI)
+					logs = append(logs, fmt.Sprintf("  %s: %s", x509extras.FriendlyAccessMethod(ad.Method), ad.URI))
+
 				}
 			} else {
-				log.Printf("%s: failed to parse (%v)", getFriendlyName(oid), err)
+				//log.Printf("%s: failed to parse (%v)", getFriendlyName(oid), err)
+				logs = append(logs, fmt.Sprintf("%s: failed to parse (%v)", getFriendlyName(oid), err))
+
 			}
 		}
 	}
 
-	log.Println()
+	//log.Println()
+	logs = append(logs, "")
+	return logs
 }
 
-func LogCsrInfo(csr *x509.CertificateRequest) {
-	log.SetFlags(0)
-	log.Println(strings.Repeat("-", 92))
+func LogCsrInfo(csr *x509.CertificateRequest) []string {
+	var logs []string
+	//log.SetFlags(0)
+	//log.Println(strings.Repeat("-", 92))
+	logs = append(logs, strings.Repeat("-", 92))
 	if csr.Subject.CommonName != "" {
-		log.Printf("Simple Name: %s", csr.Subject.CommonName)
+		//log.Printf("Simple Name: %s", csr.Subject.CommonName)
+		logs = append(logs, fmt.Sprintf("Simple Name: %s", csr.Subject.CommonName))
 	}
 
 	// Key Size
 	switch pub := csr.PublicKey.(type) {
 	case *rsa.PublicKey:
-		log.Printf("Key Size: %d", pub.N.BitLen())
+		//log.Printf("Key Size: %d", pub.N.BitLen())
+		logs = append(logs, fmt.Sprintf("Key Size: %d", pub.N.BitLen()))
 	case *ecdsa.PublicKey:
-		log.Printf("Key Size: %d (ECDSA)", pub.Params().BitSize)
+		//log.Printf("Key Size: %d (ECDSA)", pub.Params().BitSize)
+		logs = append(logs, fmt.Sprintf("Key Size: %d (ECDSA)", pub.Params().BitSize))
 	default:
-		log.Printf("Key Type: %T", pub)
+		//log.Printf("Key Type: %T", pub)
+		logs = append(logs, fmt.Sprintf("Key Type: %T", pub))
 	}
 	// Parse Extensions
 	for _, ext := range csr.Extensions {
@@ -111,14 +142,17 @@ func LogCsrInfo(csr *x509.CertificateRequest) {
 			var skid []byte
 			_, err := asn1.Unmarshal(ext.Value, &skid)
 			if err == nil {
-				log.Printf("SKID: %s", strings.ToUpper(hex.EncodeToString(skid)))
+				//log.Printf("SKID: %s", strings.ToUpper(hex.EncodeToString(skid)))
+				logs = append(logs, fmt.Sprintf("SKID: %s", strings.ToUpper(hex.EncodeToString(skid))))
 			}
 			//log.Printf("SKID%s: %s", criticalSuffix(isCritical), hex.EncodeToString(ext.Value))
 
 		case "2.5.29.17": // SAN
-			log.Printf("%s", extName)
+			//log.Printf("%s", extName)
+			logs = append(logs, fmt.Sprintf("%s", extName))
 			for _, dns := range csr.DNSNames {
-				log.Printf("  DNS: %s", dns)
+				//log.Printf("  DNS: %s", dns)
+				logs = append(logs, fmt.Sprintf("  DNS: %s", dns))
 			}
 
 		case "2.5.29.15": // Key Usage
@@ -152,9 +186,11 @@ func LogCsrInfo(csr *x509.CertificateRequest) {
 				if bitString.BitLength >= 9 && bitString.At(8) == 1 {
 					usage |= x509.KeyUsageDecipherOnly
 				}
-				log.Printf("%s: %s", extName, keyUsageString(usage))
+				//log.Printf("%s: %s", extName, keyUsageString(usage))
+				logs = append(logs, fmt.Sprintf("%s: %s", extName, keyUsageString(usage)))
 			} else {
-				log.Printf("%s: unable to parse Key Usage (%v)", extName, err)
+				//log.Printf("%s: unable to parse Key Usage (%v)", extName, err)
+				logs = append(logs, fmt.Sprintf("%s: unable to parse Key Usage (%v)", extName, err))
 			}
 
 		case "2.5.29.37": // Extended Key Usage
@@ -165,12 +201,15 @@ func LogCsrInfo(csr *x509.CertificateRequest) {
 				for _, oid := range ekuOIDs {
 					ekuNames = append(ekuNames, friendlyExtKeyUsage(oid))
 				}
-				log.Printf("%s: %s", extName, strings.Join(ekuNames, ", "))
+				//log.Printf("%s: %s", extName, strings.Join(ekuNames, ", "))
+				logs = append(logs, fmt.Sprintf("%s: %s", extName, strings.Join(ekuNames, ", ")))
 			} else {
-				log.Printf("%s: unable to parse EKU (%v)", extName, err)
+				//log.Printf("%s: unable to parse EKU (%v)", extName, err)
+				logs = append(logs, fmt.Sprintf("%s: unable to parse EKU (%v)", extName, err))
 			}
 		}
 	}
+	return logs
 }
 
 func ComputeSKIDFromPublicKey(pubKey crypto.PublicKey) ([]byte, error) {

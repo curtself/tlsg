@@ -1,9 +1,9 @@
-/*
-Copyright © 2025 Curt Self <curtself.cs@gmail.com>
-*/
+// main.go
 package main
 
-import "ssl-tools/cmd"
+import (
+	"ssl-tools/cmd"
+)
 
 func main() {
 	cmd.Execute()

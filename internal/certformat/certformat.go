@@ -71,7 +71,7 @@ func getFileBytes(path string) ([]byte, error) {
 }
 
 func isBinaryData(bytes []byte) (bool, error) {
-	for i := range bytes { 
+	for i := range bytes {
 		b := bytes[i]
 		if (b > 0 && b < 8) || (b > 13 && b < 26) {
 			return true, nil
@@ -79,7 +79,3 @@ func isBinaryData(bytes []byte) (bool, error) {
 	}
 	return false, nil
 }
-
-
-
-

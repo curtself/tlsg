@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 TODO - It seems like OCI is returning different chains sometimes.
 For instance, running this command in sequence:
 go run . info -u myportal.sdccd.edu -s
@@ -6,3 +7,10 @@ I'm unsure why this is happening. It's either a bug in my code or
 a quirk of OCI.
 It's happening in the C# version as well, but it more often returns 
 the single certificate than the full chain.
+=======
+Resolved the issue where certificate chains were not fully parsed
+using the handshake emulator. This was due to not properly reading
+the TCP packets until end of message. This fix (or something similar)
+should be applied to the C# version since it *sometimes* will get a
+partial certificate chain from the Handshake service.
+>>>>>>> da137aae49095c7663f3b625491eaf4c8053716f

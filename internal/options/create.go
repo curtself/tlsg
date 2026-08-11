@@ -3,14 +3,15 @@ package options
 import (
 	"errors"
 )
+
 type CreateOptions struct {
-    CommonName string
-    SANs       []string
-    KeySize    int
-    Key        string
+	CommonName string
+	SANs       []string
+	KeySize    int
+	Key        string
 }
 
-func (opts* CreateOptions) Validate() error {
+func (opts *CreateOptions) Validate() error {
 	if opts.CommonName == "" {
 		return errors.New("Common Name (-c) is required")
 	}

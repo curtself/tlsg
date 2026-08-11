@@ -1,6 +1,9 @@
 package certsvc
 
 import (
+	"crypto/ecdh"
+	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -8,7 +11,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"log"
+	//"log"
 	"net/url"
 	"os"
 	"ssl-tools/internal/certformat"
@@ -63,7 +66,7 @@ func (c *CertificateService) CreateCSR(opts options.CreateOptions) (*models.CSRd
 	subj := pkix.Name{
 		CommonName:         opts.CommonName,
 		Organization:       []string{"San Diego Community College District"},
-		OrganizationalUnit: []string{"It"},
+		OrganizationalUnit: []string{"IT"},
 		Country:            []string{"US"},
 		Province:           []string{"California"},
 		Locality:           []string{"San Diego"},
@@ -123,7 +126,8 @@ func check(e error) {
 	}
 }
 
-func (c *CertificateService) SaveCSRdto(dto *models.CSRdto) error {
+func (c *CertificateService) SaveCSRdto(dto *models.CSRdto) ([]string, error) {
+	var logs []string
 	// first save CSR data to file
 	csrFile := fmt.Sprintf("%s.csr", dto.Label)
 	f, err := os.Create(csrFile)
@@ -131,7 +135,7 @@ func (c *CertificateService) SaveCSRdto(dto *models.CSRdto) error {
 	defer f.Close()
 	byteCount, err := f.Write([]byte(dto.RequestData))
 	check(err)
-	fmt.Printf("wrote %d bytes to %s\n", byteCount, csrFile)
+	logs = append(logs, fmt.Sprintf("wrote %d bytes to %s", byteCount, csrFile))
 
 	// then save key but only if the key was created by service
 	if c.keyCreated {
@@ -142,12 +146,13 @@ func (c *CertificateService) SaveCSRdto(dto *models.CSRdto) error {
 		defer k.Close()
 		keyByteCount, err := k.Write([]byte(dto.KeyData))
 		check(err)
-		fmt.Printf("wrote %d bytes to %s\n", keyByteCount, keyFile)
+		logs = append(logs, fmt.Sprintf("wrote %d bytes to %s", keyByteCount, keyFile))
 	}
-	return nil
+	return logs, nil
 }
 
-func (c *CertificateService) SavePFXdto(dto *models.PFXdto) error {
+func (c *CertificateService) SavePFXdto(dto *models.PFXdto) ([]string, error) {
+	var logs []string
 	var pfxFile string
 	if dto.FileName == "" {
 		pfxFile = fmt.Sprintf("%s.pfx", dto.CommonName)
@@ -159,9 +164,10 @@ func (c *CertificateService) SavePFXdto(dto *models.PFXdto) error {
 	defer f.Close()
 	byteCount, err := f.Write(dto.CertificateData)
 	check(err)
-	fmt.Printf("wrote %d bytes to %s\n", byteCount, pfxFile)
+	logs = append(logs, fmt.Sprintf("wrote %d bytes to %s\n", byteCount, pfxFile))
+	logs = append(logs, fmt.Sprintf("PFX creation message: %s\n", dto.CreateMessage))
 
-	return nil
+	return logs, nil
 }
 
 /*
@@ -232,7 +238,10 @@ func (c *CertificateService) FinishCSR(opts options.FinishOptions) (*models.PFXd
 	// Show info if in verbose mode
 	if opts.Verbose {
 		fmt.Printf("Loaded %d certs\n", len(certs))
-		certinfo.LogChainSummary(certs)
+		outputLines := certinfo.LogChainSummary(certs)
+		for _, line := range outputLines {
+			fmt.Println(line)
+		}
 	}
 
 	// Identify end-entity certificate
@@ -253,8 +262,7 @@ func (c *CertificateService) FinishCSR(opts options.FinishOptions) (*models.PFXd
 		return dto, nil
 	}
 
-	// Parse private key
-	privKey, err := parseRSAPrivateKey(keyBytes)
+	privKey, err := parsePrivateKey(keyBytes)
 	if err != nil {
 		dto.CreateMessage = fmt.Sprintf("Failed to parse private key: %v", err)
 		dto.OpCode = 1005
@@ -357,13 +365,28 @@ func parsePEMCerts(pemData []byte) ([]*x509.Certificate, error) {
 	return certs, nil
 }
 
-func parseRSAPrivateKey(keyData []byte) (*rsa.PrivateKey, error) {
+func parsePrivateKey(keyData []byte) (any, error) {
 	block, _ := pem.Decode(keyData)
-	if block == nil || block.Type != "RSA PRIVATE KEY" {
-		return nil, errors.New("invalid PEM RSA private key")
+	if block == nil {
+		return nil, errors.New("invalid PEM private key")
 	}
-	return x509.ParsePKCS1PrivateKey(block.Bytes)
+
+	switch block.Type {
+	case "RSA PRIVATE KEY":
+		return x509.ParsePKCS1PrivateKey(block.Bytes)
+
+	case "EC PRIVATE KEY":
+		return x509.ParseECPrivateKey(block.Bytes)
+
+	case "PRIVATE KEY":
+		// PKCS#8 (RSA, EC, Ed25519, etc.)
+		return x509.ParsePKCS8PrivateKey(block.Bytes)
+
+	default:
+		return nil, fmt.Errorf("unsupported private key type: %s", block.Type)
+	}
 }
+
 
 func findEndEntityCert(certs []*x509.Certificate) *x509.Certificate {
 	for _, cert := range certs {
@@ -385,11 +408,19 @@ func isSelfSigned(cert *x509.Certificate) bool {
 	return cert.Issuer.String() == cert.Subject.String()
 }
 
-func encodeToPFX(certs []*x509.Certificate, key *rsa.PrivateKey, password string) ([]byte, error) {
+func encodeToPFX(certs []*x509.Certificate, key any, password string) ([]byte, error) {
 	// This requires Go's x/crypto/pkcs12 package
 	// go get golang.org/x/crypto/pkcs12
 	// the above line uses the 'legacy' encoder and is considered 'unsafe' (not sure why it is presented like it is the default)
 	//return pkcs12.Encode(rand.Reader, key, certs[0], certs[1:], password)
+	switch key.(type) {
+	case *rsa.PrivateKey:
+	case *ecdsa.PrivateKey:
+	case ed25519.PrivateKey:
+	case *ecdh.PrivateKey:
+	default:
+		return nil, fmt.Errorf("unsupported private key type %T", key)
+	}
 	if len(certs) == 1 {
 		return pkcs12.Modern2023.Encode(key, certs[0], nil, password)
 	} else {
@@ -413,7 +444,7 @@ func loadCsrFromFile(path string) (*x509.CertificateRequest, error) {
 	block, _ := pem.Decode(pemBytes)
 	if block != nil {
 		if block.Type != "CERTIFICATE REQUEST" {
-			fmt.Printf("failed to get CSR, instead got %s\n", block.Type)
+			//fmt.Printf("failed to get CSR, instead got %s\n", block.Type)
 			return nil, errors.New("bad PEM block type")
 		}
 	} else {
@@ -478,7 +509,8 @@ func loadBinaryCertsFromFile(path string, pass string) ([]*x509.Certificate, err
 }
 
 // info section
-func (c *CertificateService) GetInfo(opts options.InfoOptions) error {
+func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error) {
+	var logs []string
 	if len(opts.Certificates) > 0 {
 		for _, path := range opts.Certificates {
 			format := certformat.CertificateFormat.Detect(path)
@@ -489,20 +521,23 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) error {
 				if err == nil {
 					if !opts.ShortSummary {
 						for _, cert := range certs {
-							certinfo.LogCertInfo(cert)
+							logs = append(logs, certinfo.LogCertInfo(cert)...)
 						}
 					}
-					fmt.Println(strings.Repeat("-", 92))
-					fmt.Println("Chain summary")
-					certinfo.LogChainSummary(certs)
+					//fmt.Println(strings.Repeat("-", 92))
+					//fmt.Println("Chain summary")
+					logs = append(logs, strings.Repeat("-", 92))
+					logs = append(logs, "Chain summary")
+					logs = append(logs, certinfo.LogChainSummary(certs)...)
 					/*
 						for i, cert := range certs {
 							certinfo.LogCertSummary(cert, i)
 						}
 					*/
 				} else {
-					fmt.Println(fmt.Errorf("reading certificates failed: %w", err))
-					return err
+					//fmt.Println(fmt.Errorf("reading certificates failed: %w", err))
+					logs = append(logs, fmt.Sprintf("reading certificates failed: %v", errors.Unwrap(err)))
+					return logs, err
 				}
 			case certformat.PEM:
 				//fmt.Println("PEM certificate file found: ", path)
@@ -510,34 +545,38 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) error {
 				if err == nil {
 					if !opts.ShortSummary {
 						for _, cert := range certs {
-							certinfo.LogCertInfo(cert)
+							logs = append(logs, certinfo.LogCertInfo(cert)...)
 						}
 					}
-					fmt.Println(strings.Repeat("-", 92))
-					fmt.Println("Chain summary")
-					certinfo.LogChainSummary(certs)
+					//fmt.Println(strings.Repeat("-", 92))
+					//fmt.Println("Chain summary")
+					logs = append(logs, strings.Repeat("-", 92))
+					logs = append(logs, "Chain summary")
+					logs = append(logs, certinfo.LogChainSummary(certs)...)
 					/*
 						for i, cert := range certs {
 							certinfo.LogCertSummary(cert, i)
 						}
 					*/
 				} else {
-					fmt.Println(fmt.Errorf("reading certificates failed: %W", err))
-					return err
+					//fmt.Println(fmt.Errorf("reading certificates failed: %w", err))
+					logs = append(logs, fmt.Sprintf("reading certificates failed: %v", errors.Unwrap(err)))
+					return logs, err
 				}
 			}
 		}
 	}
 	if opts.CSR != "" {
-		fmt.Printf("reading CSR from file: %s\n", opts.CSR)
+		//fmt.Printf("reading CSR from file: %s\n", opts.CSR)
+		logs = append(logs, fmt.Sprintf("reading CSR from file: %s", opts.CSR))
 		csr, err := loadCsrFromFile(opts.CSR)
 		if err != nil {
-			fmt.Println(fmt.Errorf("reading CSR failed: %W", err))
-			return err
+			//fmt.Println(fmt.Errorf("reading CSR failed: %w", err))
+			logs = append(logs, fmt.Sprintf("reading CSR failed: %v", errors.Unwrap(err)))
+			return logs, err
 		}
-		certinfo.LogCsrInfo(csr)
+		logs = append(logs, certinfo.LogCsrInfo(csr)...)
 	}
-	// TODO - add handling of hosts (similar to URLs)
 	if len(opts.URLs) > 0 {
 		for _, urlString := range opts.URLs {
 			if !strings.HasPrefix(urlString, "http") {
@@ -545,63 +584,73 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) error {
 			}
 			u, err := url.Parse(urlString)
 			if err != nil {
-				log.Fatal(err)
-				return err
+				//log.Fatal(err)
+				logs = append(logs, fmt.Sprintf("Error: %v", errors.Unwrap(err)))
+				return logs, err
 			}
 			host := u.Host
 			h := handshake.New(host, "")
 			certs, err := h.PerformHandshake()
-			fmt.Printf("Got host [%s] from options\n", host)
+			//fmt.Printf("Got host [%s] from options\n", host)
+			logs = append(logs, fmt.Sprintf("Got host [%s] from options", host))
 			if err == nil {
 				if !opts.ShortSummary {
 					for _, cert := range certs {
-						certinfo.LogCertInfo(cert)
+						logs = append(logs, certinfo.LogCertInfo(cert)...)
 					}
 				}
-				fmt.Println(strings.Repeat("-", 92))
-				fmt.Println("Chain summary")
-				certinfo.LogChainSummary(certs)
+				//fmt.Println(strings.Repeat("-", 92))
+				//fmt.Println("Chain summary")
+				logs = append(logs, strings.Repeat("-", 92))
+				logs = append(logs, "Chain summary")
+				logs = append(logs, certinfo.LogChainSummary(certs)...)
 				/*
 					for i, cert := range certs {
 						certinfo.LogCertSummary(cert, i)
 					}
 				*/
 			} else {
-				fmt.Println(fmt.Errorf("reading certificates failed: %w", err))
-				log.Fatal(err)
-				return err
+				//fmt.Println(fmt.Errorf("reading certificates failed: %w", err))
+				//log.Fatal(err)
+				logs = append(logs, fmt.Sprintf("reading certificates failed: %v", errors.Unwrap(err)))
+				return logs, err
 			}
 		}
 	}
 	if len(opts.Hosts) > 0 {
-		fmt.Println("reading certificates from host(s)")
-		for k,v := range opts.Hosts {
-			if !strings.HasPrefix(k,"http") {
+		//fmt.Println("reading certificates from host(s)")
+		logs = append(logs, "reading certificates from host(s)")
+		for k, v := range opts.Hosts {
+			if !strings.HasPrefix(k, "http") {
 				k = "https://" + k
 			}
 			u, err := url.Parse(k)
 			if err != nil {
-				log.Fatal(err)
-				return err
+				//log.Fatal(err)
+				logs = append(logs, fmt.Sprintf("Error parsing URL: %v", errors.Unwrap(err)))
+				return logs, err
 			}
 			host := u.Host
-			h := handshake.New(host,v)
+			h := handshake.New(host, v)
 			certs, err := h.PerformHandshake()
 			if err == nil {
 				if !opts.ShortSummary {
 					for _, cert := range certs {
-						certinfo.LogCertInfo(cert)
+						logs = append(logs, certinfo.LogCertInfo(cert)...)
 					}
 				}
-				fmt.Println(strings.Repeat("-", 92))
-				fmt.Println("Chain summary")
-				certinfo.LogChainSummary(certs)
+				//fmt.Println(strings.Repeat("-", 92))
+				//fmt.Println("Chain summary")
+				logs = append(logs, strings.Repeat("-", 92))
+				logs = append(logs, "Chain summary")
+				logs = append(logs, certinfo.LogChainSummary(certs)...)
 			} else {
-				fmt.Println( fmt.Errorf("reading certificates failed: %w", err))
-				log.Fatal(err)
-				return err
+				//fmt.Println(fmt.Errorf("reading certificates failed: %w", err))
+				logs = append(logs, fmt.Sprintf("reading certificates failed: %v", errors.Unwrap(err)))
+				//log.Fatal(err)
+				return logs, err
 			}
 		}
 	}
-	return nil
+	return logs, nil
 }

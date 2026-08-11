@@ -69,46 +69,7 @@ When using the --chain switch the application implicitly calls the "Autofix" met
 
 ## Autofix Verb
 
-Use the _autofix_ verb to automatically fix the order of a certificate chain without providing any user input.
-
-```bash
-ssl-tools.exe help autofix
-  -c, --cert    The certificate to fix (required)
-  -o, --oracle  Prepare additional certificates for Oracle (optional)
-  -b, --bypass-local-validation
-                Do not use local system stores to validate CA certificates exist (optional)
-  -z, --zip     Zip resulting certificates (optional)
-  -d, --der     Save certificate in binary DER format (optional)
-Examples:
-#Will correct the order of the certficate chain from InCommon for *.dev.sdccd.edu
-ssl-tools.exe autofix --cert _dev.sdccd.edu_chain.pem
-#Will correct the order of the certificate chain from InCommon for csdev.dev.sdccd.edu
-#and also generate the three certificate files needed to install on Oracle/PeopleSoft systems
-ssl-tools.exe autofix -c csdev.dev.sdccd.edu.pem -o
-#Will correct the order of the certificate chain and create a new file for the binary certificate chain.
-#The resulting output file will have a .der file extension
-ssl-tools.exe autofix -c csdev.dev.sdccd.edu.pem -d
-```
-
-#### Note on autofix with single subject certificate file
-If you run autofix on a certificate file that does not contain a chain (for example, only a subject certificate) the application will attempt to build the chain using the [Windows Certificate Chain Engine rules](https://www.sysadmins.lv/blog-en/certificate-chaining-engine-how-this-works.aspx). The single certificate file will be updated/overwritten with the new certificate chain
-
-#### Creating Oracle certificates
-When using the --oracle switch an additional four files get created:
-- csdev.sdccd.edu_oracle__client.pem
-- csdev.sdccd.edu_oracle__intermediate.pem
-- csdev.sdccd.edu_oracle__root.pem
-- csdev.sdccd.edu_oracle___fullchain.pem
-
-These are all files that normally get manually created as part of the certificate installation process for PeopleSoft.
-The original certificate chain that was autofixed by the process is suitable for use with the OCI load balancers, but only if the --der flag is not used.
-
-#### Bypassing local validation
-Use this switch when the certificate bundle includes intermediate certificates that are marked as certificate authorities but are not installed on the host system. By default any intermediate certificate is trusted implicitly when part of a bundle and properly signed by a trusted Certificate Authority. But local validation treats each certificate as if it were isolated from the bundle. If a certificate includes a Basic Constraint Extension of _CA:true_ the local validation expects it to be installed on the system as a trusted CA certificate.
-
-#### Zip file creation
-When using the zip switch will create a password protected zip file. The password used is read from an environment variable named _sslpass_. If not found then the default value of _SSL-PASSWORD_ is used.
-Any file that matches either the source file name or the subject certificate's Common Name will be included in the zip file (except for any CSR files).
+This does not work and probably will not ever work for this port. The C# version relies heavily on Windows certificate store API calls that are not available (with no equivalent feature) on Go/Linux environments.
 
 
 ## Info Verb
@@ -120,6 +81,7 @@ ssl-tools.exe help info
   -c, --cert    The certificate(s) to view (optional)
   -r, --csr     The CSR to view (optional)
   -u, --url     The URL(s) to fetch certificate and chain (optional)
+  --host        The host=addr to use. These arguments allow you to bypass DNS and set the host and address manually (optional)
   -s, --short   Show short summary only (optional)
 Examples:
 #Will show information about a csr

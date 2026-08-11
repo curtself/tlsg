@@ -28,7 +28,7 @@ var infoCmd = &cobra.Command{
 			if len(parts) != 2 {
 				return fmt.Errorf("Invalid host format: %s (expected host=address)", pair)
 			}
-			fmt.Printf( "Adding host:addr of %s:%s\n", parts[0], parts[1])
+			fmt.Printf("Adding host:addr of %s:%s\n", parts[0], parts[1])
 			infoOpts.Hosts[parts[0]] = parts[1]
 		}
 		if err := infoOpts.Validate(); err != nil {
@@ -36,9 +36,12 @@ var infoCmd = &cobra.Command{
 		}
 		//fmt.Printf("Arguments given %+v\n",infoOpts)
 		svc := certsvc.New()
-		err := svc.GetInfo(infoOpts)
+		outputLogs, err := svc.GetInfo(infoOpts)
 		if err != nil {
 			return fmt.Errorf("Error getting info: %w", err)
+		}
+		for _, line := range outputLogs {
+			fmt.Println(line)
 		}
 		return nil
 	},

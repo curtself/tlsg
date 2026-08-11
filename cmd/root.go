@@ -1,18 +1,17 @@
-/*
-Copyright © 2025 Curt Self <curtself.cs@gmail.com>
-*/
+// cmd/root.go
 package cmd
 
 import (
-	"os"
-
 	"github.com/spf13/cobra"
+	"os"
+	"ssl-tools/internal/version"
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "ssl-tools",
-	Short: "Certificate and CSR helper utility",
+	Use:     "ssl-tools",
+	Short:   "Certificate and CSR helper utility",
+	Version: version.Version,
 	Long: `A certificate and CSR helper utility to make life easier.
 
 This is the Go port of the original C# project by the same name.
@@ -32,13 +31,4 @@ func Execute() {
 }
 
 func init() {
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.ssl-tools.yaml)")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	//rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

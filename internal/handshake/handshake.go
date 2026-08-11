@@ -2,12 +2,11 @@ package handshake
 
 import (
 	"crypto/x509"
-	//"encoding/pem"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"time"
-	"io"
-	"errors"
 )
 
 type HandshakeService struct {
@@ -30,12 +29,12 @@ func (s *HandshakeService) PerformHandshake() ([]*x509.Certificate, error) {
 		addr = s.Address + ":" + s.Port
 	}
 
-	fmt.Println("Dialing TCP to", addr)
+	//fmt.Println("Dialing TCP to", addr)
 	conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect: %w", err)
 	}
-	fmt.Println("Connected to", conn.RemoteAddr())
+	//fmt.Println("Connected to", conn.RemoteAddr())
 	defer conn.Close()
 
 	clientHello := BuildClientHello(s.Host)
@@ -48,11 +47,11 @@ func (s *HandshakeService) PerformHandshake() ([]*x509.Certificate, error) {
 	buf := make([]byte, 8192)
 
 	for {
-		fmt.Println("Reading TCP packet...")
+		//fmt.Println("Reading TCP packet...")
 		n, err := conn.Read(buf)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				fmt.Println("Server closed connection")
+				//fmt.Println("Server closed connection")
 				break
 			}
 			return nil, fmt.Errorf("failed to read response: %w", err)
@@ -64,6 +63,7 @@ func (s *HandshakeService) PerformHandshake() ([]*x509.Certificate, error) {
 		fullResponse = append(fullResponse, buf[:n]...)
 
 		// Check if last two bytes are 0x00 0x00
+
 		if len(fullResponse) >= 2 {
 			end := fullResponse[len(fullResponse)-2:]
 			if end[0] == 0x00 && end[1] == 0x00 {
@@ -76,7 +76,6 @@ func (s *HandshakeService) PerformHandshake() ([]*x509.Certificate, error) {
 		return nil, fmt.Errorf("no response from server")
 	}
 
-	fmt.Printf("received total %d bytes from server\n", len(fullResponse))
+	//fmt.Printf("received total %d bytes from server\n", len(fullResponse))
 	return ParseCertificates(fullResponse)
 }
-
