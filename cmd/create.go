@@ -5,12 +5,9 @@ package cmd
 
 import (
 	"fmt"
-	//"os"
-	//"strings"
 	"github.com/spf13/cobra"
 	"ssl-tools/internal/certsvc"
 	"ssl-tools/internal/options"
-	//"ssl-tools/internal/models"
 )
 
 var createOpts options.CreateOptions
@@ -45,8 +42,6 @@ var createCmd = &cobra.Command{
 		for _, line := range outputLogs {
 			fmt.Printf("%s\n", line)
 		}
-		/*
-		 */
 
 		return nil
 	},
