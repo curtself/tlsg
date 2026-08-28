@@ -6,8 +6,8 @@ package cmd
 import (
 	"fmt"
 	"github.com/spf13/cobra"
-	"ssl-tools/internal/certsvc"
-	"ssl-tools/internal/options"
+	"tlsg/internal/certsvc"
+	"tlsg/internal/options"
 )
 
 var createOpts options.CreateOptions

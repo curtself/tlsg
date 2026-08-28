@@ -15,13 +15,13 @@ import (
 	//"log"
 	"net/url"
 	"os"
-	"ssl-tools/internal/certformat"
-	"ssl-tools/internal/certinfo"
-	"ssl-tools/internal/handshake"
-	"ssl-tools/internal/models"
-	"ssl-tools/internal/options"
-	"ssl-tools/internal/x509extras"
 	"strings"
+	"tlsg/internal/certformat"
+	"tlsg/internal/certinfo"
+	"tlsg/internal/handshake"
+	"tlsg/internal/models"
+	"tlsg/internal/options"
+	"tlsg/internal/x509extras"
 
 	"software.sslmate.com/src/go-pkcs12"
 )
@@ -509,76 +509,76 @@ func loadBinaryCertsFromFile(path string, pass string) ([]*x509.Certificate, err
 }
 
 func writeCertsToPem(path string, certs []*x509.Certificate) error {
-    f, err := os.Create(path)
-    if err != nil {
-        return fmt.Errorf("failed to create output file: %w", err)
-    }
-    defer f.Close()
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("failed to create output file: %w", err)
+	}
+	defer f.Close()
 
-    for _, cert := range certs {
-        if err := pem.Encode(f, &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}); err != nil {
-            return fmt.Errorf("failed to encode certificate: %w", err)
-        }
-    }
+	for _, cert := range certs {
+		if err := pem.Encode(f, &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}); err != nil {
+			return fmt.Errorf("failed to encode certificate: %w", err)
+		}
+	}
 
-    return nil
+	return nil
 }
 
 func loadCertsFromFile(path string, password string) ([]*x509.Certificate, error) {
-    format := certformat.CertificateFormat.Detect(path)
+	format := certformat.CertificateFormat.Detect(path)
 
-    switch format {
-    case certformat.DER:
-        return loadBinaryCertsFromFile(path, password)
-    case certformat.PEM:
-        return loadPemCertsFromFile(path)
-    default:
-        return nil, fmt.Errorf("unsupported certificate format")
-    }
+	switch format {
+	case certformat.DER:
+		return loadBinaryCertsFromFile(path, password)
+	case certformat.PEM:
+		return loadPemCertsFromFile(path)
+	default:
+		return nil, fmt.Errorf("unsupported certificate format")
+	}
 }
 
 // extract section
 func (c *CertificateService) Extract(opts options.ExtractOptions) ([]string, error) {
-    var logs []string
+	var logs []string
 
-    if len(opts.Certificates) == 0 {
-        return logs, errors.New("no certificate file specified")
-    }
+	if len(opts.Certificates) == 0 {
+		return logs, errors.New("no certificate file specified")
+	}
 
-    logs = append(logs, strings.Repeat("-", 92))
-    logs = append(logs, "Extract verb called")
+	logs = append(logs, strings.Repeat("-", 92))
+	logs = append(logs, "Extract verb called")
 
-    for _, path := range opts.Certificates {
-        certs, err := loadCertsFromFile(path, opts.Password)
-        if err != nil {
-            logs = append(logs, fmt.Sprintf("reading certificates failed: %v", err))
-            return logs, err
-        }
+	for _, path := range opts.Certificates {
+		certs, err := loadCertsFromFile(path, opts.Password)
+		if err != nil {
+			logs = append(logs, fmt.Sprintf("reading certificates failed: %v", err))
+			return logs, err
+		}
 
 		// if NumExtract not given, we want all except root
 		if opts.NumExtract == 0 {
-			opts.NumExtract = len(certs) -1
+			opts.NumExtract = len(certs) - 1
 		}
-        if opts.SkipCount >= len(certs) {
-            return logs, fmt.Errorf("skip count %d exceeds certificate count %d", opts.SkipCount, len(certs))
-        }
+		if opts.SkipCount >= len(certs) {
+			return logs, fmt.Errorf("skip count %d exceeds certificate count %d", opts.SkipCount, len(certs))
+		}
 
-        end := opts.SkipCount + opts.NumExtract
-        if end > len(certs) {
-            return logs, fmt.Errorf("requested %d certificates starting at %d, but chain only contains %d certificates", opts.NumExtract, opts.SkipCount, len(certs))
-        }
+		end := opts.SkipCount + opts.NumExtract
+		if end > len(certs) {
+			return logs, fmt.Errorf("requested %d certificates starting at %d, but chain only contains %d certificates", opts.NumExtract, opts.SkipCount, len(certs))
+		}
 
-        selected := certs[opts.SkipCount:end]
+		selected := certs[opts.SkipCount:end]
 
-        if err := writeCertsToPem(opts.OutputFile, selected); err != nil {
-            logs = append(logs, fmt.Sprintf("failed to write extracted certificates: %v", err))
-            return logs, err
-        }
+		if err := writeCertsToPem(opts.OutputFile, selected); err != nil {
+			logs = append(logs, fmt.Sprintf("failed to write extracted certificates: %v", err))
+			return logs, err
+		}
 
-        logs = append(logs, fmt.Sprintf("extracted %d certificate(s) from %s to %s", len(selected), path, opts.OutputFile))
-    }
+		logs = append(logs, fmt.Sprintf("extracted %d certificate(s) from %s to %s", len(selected), path, opts.OutputFile))
+	}
 
-    return logs, nil
+	return logs, nil
 }
 
 // info section

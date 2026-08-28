@@ -10,8 +10,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	//"log"
-	"ssl-tools/internal/x509extras"
 	"strings"
+	"tlsg/internal/x509extras"
 )
 
 func LogCertSummary(cert *x509.Certificate, index int) string {
