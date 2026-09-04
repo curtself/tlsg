@@ -1,4 +1,4 @@
-module ssl-tools
+module tlsg
 
 go 1.24.5
 
