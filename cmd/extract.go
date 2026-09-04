@@ -38,8 +38,8 @@ func init() {
 	//extractCmd.Flags().StringVarP(&extractOpts.CertFile, "certificate", "c", "", "Certificate file path (required)")
 	extractCmd.Flags().StringArrayVarP(&extractOpts.Certificates, "cert", "c", []string{}, "Certificate file")
 	extractCmd.Flags().StringVarP(&extractOpts.OutputFile, "output", "o", "", "Output file path (optional)")
-	extractCmd.Flags().IntVarP(&extractOpts.NumExtract, "number", "n", 0, "Number of certificates to extract (required)")
+	extractCmd.Flags().IntVarP(&extractOpts.NumExtract, "number", "n", 0, "Number of certificates to extract (optional)")
 	extractCmd.Flags().IntVarP(&extractOpts.SkipCount, "skip", "s", 0, "Number of certificates to skip (optional)")
-	extractCmd.Flags().StringVarP(&extractOpts.Password, "password", "p", "", "Password (itional), used with pkcs12/pfx files)")
+	extractCmd.Flags().StringVarP(&extractOpts.Password, "password", "p", "", "Password (optional), used with pkcs12/pfx files)")
 	rootCmd.AddCommand(extractCmd)
 }
