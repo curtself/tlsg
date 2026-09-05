@@ -2,7 +2,7 @@
 package main
 
 import (
-	"ssl-tools/cmd"
+	"tlsg/cmd"
 )
 
 func main() {

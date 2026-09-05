@@ -4,18 +4,18 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 	"os"
-	"ssl-tools/internal/version"
+	"tlsg/internal/version"
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:     "ssl-tools",
+	Use:     "tlsg",
 	Short:   "Certificate and CSR helper utility",
 	Version: version.Version,
 	Long: `A certificate and CSR helper utility to make life easier.
 
-This is the Go port of the original C# project by the same name.
-There are some minor differences but all features should (eventually) work.`,
+This started as the Go port of the original C# project with the name 'ssl-tools'
+There are some minor differences, and this port is evolving beyond those original features.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },

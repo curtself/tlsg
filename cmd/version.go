@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"runtime"
 
-	"ssl-tools/internal/version"
+	"tlsg/internal/version"
 
 	"github.com/spf13/cobra"
 )
@@ -15,9 +15,9 @@ import (
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Display version information",
-	Long:  "Display the version and build information for ssl-tools.",
+	Long:  "Display the version and build information for tlsg.",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("ssl-tools %s\n", version.Version)
+		fmt.Printf("tlsg %s\n", version.Version)
 		fmt.Printf("Commit:     %s\n", version.Commit)
 		fmt.Printf("Built:      %s\n", version.BuildDate)
 		fmt.Printf("Go Version: %s\n", runtime.Version())
