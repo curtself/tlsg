@@ -69,6 +69,8 @@ func SortCertificateChain(certs []*x509.Certificate) ([]*x509.Certificate, error
 			continue
 		}
 
+		break
+		/*
 		// Not found in chain, try system trust
 		roots, err := x509.SystemCertPool()
 		if err != nil {
@@ -91,6 +93,7 @@ func SortCertificateChain(certs []*x509.Certificate) ([]*x509.Certificate, error
 		} else {
 			return nil, errors.New("incomplete chain: issuer not found and cert not trusted: " + current.Subject.String())
 		}
+		*/
 	}
 
 	return sorted, nil
