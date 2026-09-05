@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,8 +24,7 @@ jobs:
       - name: Build
         run: go build -o tlsg .
 
-      - name: Upload executable
-        uses: actions/upload-artifact@v4
-        with:
-          name: tlsg
-          path: tlsg
+      - name: Create GitHub Release
+        run: gh release create "${{ github.ref_name }}" tlsg --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
