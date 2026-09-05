@@ -70,30 +70,6 @@ func SortCertificateChain(certs []*x509.Certificate) ([]*x509.Certificate, error
 		}
 
 		break
-		/*
-		// Not found in chain, try system trust
-		roots, err := x509.SystemCertPool()
-		if err != nil {
-			return nil, errors.New("could not load system cert pool")
-		}
-
-		intermediates := x509.NewCertPool()
-		for _, ic := range sorted {
-			intermediates.AddCert(ic)
-		}
-
-		opts := x509.VerifyOptions{
-			Roots:         roots,
-			Intermediates: intermediates,
-			KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
-		}
-
-		if _, err := current.Verify(opts); err == nil {
-			break // trusted by system
-		} else {
-			return nil, errors.New("incomplete chain: issuer not found and cert not trusted: " + current.Subject.String())
-		}
-		*/
 	}
 
 	return sorted, nil
