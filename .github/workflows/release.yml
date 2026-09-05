@@ -22,9 +22,9 @@ jobs:
           go-version-file: 'go.mod'
 
       - name: Build
-        run: go build -o tlsg .
+        run: ./scripts/build.sh
 
       - name: Create GitHub Release
-        run: gh release create "${{ github.ref_name }}" tlsg --generate-notes
+        run: gh release create "${{ github.ref_name }}" dist/tlsg --generate-notes
         env:
           GH_TOKEN: ${{ github.token }}
