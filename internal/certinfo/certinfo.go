@@ -401,6 +401,7 @@ func certFingerprintSHA1(cert *x509.Certificate) string {
 	fp := sha1.Sum(cert.Raw)
 	return strings.ToUpper(hex.EncodeToString(fp[:]))
 }
+
 // certFingerprintSHA256 returns the SHA-256 fingerprint of the
 // complete DER-encoded certificate.
 func certFingerprintSHA256(cert *x509.Certificate) string {
