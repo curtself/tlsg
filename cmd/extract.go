@@ -41,5 +41,6 @@ func init() {
 	extractCmd.Flags().IntVarP(&extractOpts.NumExtract, "number", "n", 0, "Number of certificates to extract (optional)")
 	extractCmd.Flags().IntVarP(&extractOpts.SkipCount, "skip", "s", 0, "Number of certificates to skip (optional)")
 	extractCmd.Flags().StringVarP(&extractOpts.Password, "password", "p", "", "Password (optional), used with pkcs12/pfx files)")
+	extractCmd.Flags().BoolVarP(&extractOpts.Verbose, "verbose", "v", false, "Verbose output")
 	rootCmd.AddCommand(extractCmd)
 }
