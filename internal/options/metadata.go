@@ -5,19 +5,17 @@ import (
 	"os"
 )
 
-type ExtractOptions struct {
+type MetadataOptions struct {
 	Certificates []string
 	OutputFile   string
-	NumExtract   int
-	SkipCount    int
 	Password     string
 	Verbose      bool
 }
 
-func (opts *ExtractOptions) Validate() error {
+func (opts *MetadataOptions) Validate() error {
 	certCount := len(opts.Certificates)
-	if certCount == 0 {
-		return errors.New("you must provide a certificate file (-c)")
+	if certCount != 1 {
+		return errors.New("you must only provide one certificate file (-c)")
 	}
 	if opts.OutputFile == "" {
 		return errors.New("you must provide an output file (-o)")
@@ -32,5 +30,6 @@ func (opts *ExtractOptions) Validate() error {
 		}
 		//opts.Password = os.Getenv("sslpass")
 	}
+
 	return nil
 }

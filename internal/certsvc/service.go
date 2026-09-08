@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	//"log"
+	"encoding/json"
 	"net/url"
 	"os"
 	"strings"
@@ -535,6 +536,63 @@ func loadCertsFromFile(path string, password string) ([]*x509.Certificate, error
 	default:
 		return nil, fmt.Errorf("unsupported certificate format")
 	}
+}
+
+// metadata section
+// metadata section
+func (c *CertificateService) Metadata(opts options.MetadataOptions) ([]string, error) {
+	var logs []string
+
+	if len(opts.Certificates) != 1 {
+		return logs, errors.New("exactly one certificate is required")
+	}
+
+	path := opts.Certificates[0]
+	format := certformat.CertificateFormat.Detect(path)
+
+	var certs []*x509.Certificate
+	var err error
+
+	switch format {
+	case certformat.DER:
+		certs, err = loadBinaryCertsFromFile(path, opts.Password)
+	case certformat.PEM:
+		certs, err = loadPemCertsFromFile(path)
+	default:
+		return logs, fmt.Errorf("unsupported certificate format: %v", format)
+	}
+
+	if err != nil {
+		logs = append(logs, fmt.Sprintf(
+			"reading certificates failed: %v",
+			errors.Unwrap(err),
+		))
+		return logs, err
+	}
+
+	if len(certs) == 0 {
+		return logs, errors.New("no certificates found in file")
+	}
+
+	info := certinfo.GetCertInfo(certs[0])
+
+	data, err := json.MarshalIndent(info, "", "  ")
+	if err != nil {
+		return logs, fmt.Errorf("failed to generate JSON: %w", err)
+	}
+
+	if err := os.WriteFile(opts.OutputFile, data, 0644); err != nil {
+		return logs, fmt.Errorf("failed to write metadata file: %w", err)
+	}
+
+	if opts.Verbose {
+		logs = append(logs, fmt.Sprintf(
+			"Metadata written to %s",
+			opts.OutputFile,
+		))
+	}
+
+	return logs, nil
 }
 
 // extract section
