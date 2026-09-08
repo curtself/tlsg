@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,11 +21,13 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      - name: Build
-        run: go build -o tlsg .
+      - name: Build Linux
+        run: ./scripts/build.sh linux amd64
 
-      - name: Upload executable
-        uses: actions/upload-artifact@v4
-        with:
-          name: tlsg
-          path: tlsg
+      - name: Build Windows
+        run: ./scripts/build.sh windows amd64
+
+      - name: Create GitHub Release
+        run: gh release create "${{ github.ref_name }}" dist/tlsg-linux-amd64 dist/tlsg-windows-amd64.exe --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
