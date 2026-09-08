@@ -21,10 +21,13 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      - name: Build
-        run: ./scripts/build.sh
+      - name: Build Linux
+        run: ./scripts/build.sh linux amd64
+
+      - name: Build Windows
+        run: ./scripts/build.sh windows amd64
 
       - name: Create GitHub Release
-        run: gh release create "${{ github.ref_name }}" dist/tlsg --generate-notes
+        run: gh release create "${{ github.ref_name }}" dist/tlsg-linux-amd64 dist/tlsg-windows-amd64.exe --generate-notes
         env:
           GH_TOKEN: ${{ github.token }}
