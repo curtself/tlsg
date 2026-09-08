@@ -5,159 +5,300 @@ import (
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/sha1"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/asn1"
 	"encoding/hex"
 	"fmt"
-	//"log"
 	"strings"
+	"time"
+
 	"tlsg/internal/x509extras"
 )
 
+// CertInfo contains structured information about an X.509 certificate.
+// It is suitable for both human-readable output and JSON serialization.
+type CertInfo struct {
+	CommonName         string          `json:"commonName"`
+	SubjectDN          string          `json:"subjectDN"`
+	NotBefore          time.Time       `json:"notBefore"`
+	NotAfter           time.Time       `json:"notAfter"`
+	Issuer             string          `json:"issuer"`
+	IssuerDN           string          `json:"issuerDN"`
+	SerialNumber       string          `json:"serialNumber"`
+	Thumbprint         string          `json:"thumbprint"`
+	Thumbprint256      string          `json:"thumbprint256"`
+	IsCA               bool            `json:"isCA"`
+	SelfSigned         bool            `json:"selfSigned"`
+	SubjectKeyID       string          `json:"subjectKeyID"`
+	AuthorityKeyID     string          `json:"authorityKeyID"`
+	DNSNames           []string        `json:"dnsNames"`
+	IPAddresses        []string        `json:"ipAddresses"`
+	EmailAddresses     []string        `json:"emailAddresses"`
+	URIs               []string        `json:"uris"`
+	KeyUsage           []string        `json:"keyUsage"`
+	ExtendedKeyUsage   []string        `json:"extendedKeyUsage"`
+	AuthorityInfo      []AuthorityInfo `json:"authorityInfo"`
+	SignatureAlgorithm string          `json:"signatureAlgorithm"`
+	PublicKeyAlgorithm string          `json:"publicKeyAlgorithm"`
+	PublicKeySize      int             `json:"publicKeySize"`
+}
+
+// AuthorityInfo contains information from an Authority Information Access
+// extension.
+type AuthorityInfo struct {
+	Method string `json:"method"`
+	URI    string `json:"uri"`
+}
+
+// GetCertInfo extracts structured information from a certificate.
+func GetCertInfo(cert *x509.Certificate) CertInfo {
+	info := CertInfo{
+		CommonName:         cert.Subject.CommonName,
+		SubjectDN:          cert.Subject.String(),
+		NotBefore:          cert.NotBefore,
+		NotAfter:           cert.NotAfter,
+		Issuer:             cert.Issuer.CommonName,
+		IssuerDN:           cert.Issuer.String(),
+		SerialNumber:       cert.SerialNumber.String(),
+		Thumbprint:         certFingerprintSHA1(cert),
+		Thumbprint256:      certFingerprintSHA256(cert),
+		IsCA:               cert.IsCA,
+		SelfSigned:         isSelfSigned(cert),
+		SubjectKeyID:       hex.EncodeToString(cert.SubjectKeyId),
+		AuthorityKeyID:     hex.EncodeToString(cert.AuthorityKeyId),
+		DNSNames:           append([]string(nil), cert.DNSNames...),
+		KeyUsage:           keyUsageList(cert.KeyUsage),
+		ExtendedKeyUsage:   extKeyUsageList(cert.ExtKeyUsage),
+		SignatureAlgorithm: cert.SignatureAlgorithm.String(),
+		PublicKeyAlgorithm: cert.PublicKeyAlgorithm.String(),
+		PublicKeySize:      publicKeySize(cert.PublicKey),
+	}
+
+	for _, ip := range cert.IPAddresses {
+		info.IPAddresses = append(info.IPAddresses, ip.String())
+	}
+
+	for _, email := range cert.EmailAddresses {
+		info.EmailAddresses = append(info.EmailAddresses, email)
+	}
+
+	for _, uri := range cert.URIs {
+		info.URIs = append(info.URIs, uri.String())
+	}
+
+	for _, ext := range cert.Extensions {
+		if ext.Id.String() == "1.3.6.1.5.5.7.1.1" {
+			aia, err := x509extras.ParseAIA(ext.Value)
+			if err == nil {
+				for _, ad := range aia {
+					info.AuthorityInfo = append(info.AuthorityInfo, AuthorityInfo{
+						Method: x509extras.FriendlyAccessMethod(ad.Method),
+						URI:    ad.URI,
+					})
+				}
+			}
+		}
+	}
+
+	return info
+}
+
+func isSelfSigned(cert *x509.Certificate) bool {
+	return cert.CheckSignatureFrom(cert) == nil
+}
+
+func publicKeySize(pub crypto.PublicKey) int {
+	switch pub := pub.(type) {
+	case *rsa.PublicKey:
+		return pub.N.BitLen()
+	case *ecdsa.PublicKey:
+		return pub.Params().BitSize
+	default:
+		return 0
+	}
+}
+
+// LogCertSummary returns a short certificate summary.
 func LogCertSummary(cert *x509.Certificate, index int) string {
-	//log.SetFlags(0)
-	//log.Printf("[%d] %s", index, cert.Subject.CommonName)
 	return fmt.Sprintf("[%d] %s", index, cert.Subject.CommonName)
 }
 
+// LogChainSummary returns a summary of the certificates in a chain.
 func LogChainSummary(chain []*x509.Certificate) []string {
-	//log.SetFlags(0)
 	var logs []string
+
 	for i, cert := range chain {
 		logs = append(logs, LogCertSummary(cert, i))
 	}
+
 	return logs
 }
 
-// LogCertInfo prints details of the given certificate
+// LogCertInfo prints details of the given certificate.
 func LogCertInfo(cert *x509.Certificate) []string {
-	//log.SetFlags(0)
 	var logs []string
-	//log.Println(strings.Repeat("-", 92))
+	info := GetCertInfo(cert)
+
 	logs = append(logs, strings.Repeat("-", 92))
-	if cert.Subject.CommonName != "" {
-		//log.Printf("Simple Name: %s", cert.Subject.CommonName)
-		logs = append(logs, fmt.Sprintf("Simple Name: %s", cert.Subject.CommonName))
+
+	if info.CommonName != "" {
+		logs = append(logs, fmt.Sprintf("Simple Name: %s", info.CommonName))
 	}
-	logs = append(logs, fmt.Sprintf("Date: %s - %s", cert.NotBefore.Local().Format("01/02/2006 15:04:05"), cert.NotAfter.Local().Format("01/02/2006 15:04:05")))
-	logs = append(logs, fmt.Sprintf("Issuer: %s", cert.Issuer.CommonName))
-	logs = append(logs, fmt.Sprintf("Issuer DN: %s", cert.Issuer.String()))
-	logs = append(logs, fmt.Sprintf("Serial Number: %s", cert.SerialNumber.String()))
-	logs = append(logs, fmt.Sprintf("Thumbprint: %X", certFingerprintSHA1(cert)))
-	//log.Printf("Date: %s - %s", cert.NotBefore.Local().Format("01/02/2006 15:04:05"), cert.NotAfter.Local().Format("01/02/2006 15:04:05"))
-	//log.Printf("Issuer: %s", cert.Issuer.CommonName)
-	//log.Printf("Issuer DN: %s", cert.Issuer.String())
-	//log.Printf("Serial Number: %s", cert.SerialNumber.String())
-	//log.Printf("Thumbprint: %X", certFingerprintSHA1(cert))
+
+	logs = append(logs, fmt.Sprintf(
+		"Date: %s - %s",
+		info.NotBefore.Local().Format("01/02/2006 15:04:05"),
+		info.NotAfter.Local().Format("01/02/2006 15:04:05"),
+	))
+	logs = append(logs, fmt.Sprintf("Issuer: %s", info.Issuer))
+	logs = append(logs, fmt.Sprintf("Issuer DN: %s", info.IssuerDN))
+	logs = append(logs, fmt.Sprintf("Serial Number: %s", info.SerialNumber))
+	logs = append(logs, fmt.Sprintf("Thumbprint: %s", info.Thumbprint))
+	logs = append(logs, fmt.Sprintf("Thumbprint 256: %s", info.Thumbprint256))
 
 	for _, ext := range cert.Extensions {
 		oid := ext.Id.String()
 		isCritical := ext.Critical
 		extName := getFriendlyName(oid)
+
 		if isCritical {
 			extName += " (critical)"
 		}
 
 		switch oid {
-		case "2.5.29.19": // Basic Constraints
-			//log.Printf("%s: CA=%v", extName, cert.IsCA)
+		case "2.5.29.19":
 			logs = append(logs, fmt.Sprintf("%s: CA=%v", extName, cert.IsCA))
 
-		case "2.5.29.14": // Subject Key Identifier
-			//log.Printf("SKID%s: %s", criticalSuffix(isCritical), hex.EncodeToString(cert.SubjectKeyId))
-			logs = append(logs, fmt.Sprintf("SKID%s: %s", criticalSuffix(isCritical), hex.EncodeToString(cert.SubjectKeyId)))
+		case "2.5.29.14":
+			logs = append(logs, fmt.Sprintf(
+				"SKID%s: %s",
+				criticalSuffix(isCritical),
+				hex.EncodeToString(cert.SubjectKeyId),
+			))
 
-		case "2.5.29.35": // Authority Key Identifier
-			//log.Printf("AKID%s: %s", criticalSuffix(isCritical), hex.EncodeToString(cert.AuthorityKeyId))
-			logs = append(logs, fmt.Sprintf("AKID%s: %s", criticalSuffix(isCritical), hex.EncodeToString(cert.AuthorityKeyId)))
+		case "2.5.29.35":
+			logs = append(logs, fmt.Sprintf(
+				"AKID%s: %s",
+				criticalSuffix(isCritical),
+				hex.EncodeToString(cert.AuthorityKeyId),
+			))
 
-		case "2.5.29.17": // Subject Alternative Name
-			//log.Printf("%s", extName)
-			logs = append(logs, fmt.Sprintf("%s", extName))
+		case "2.5.29.17":
+			logs = append(logs, extName)
+
 			for _, dns := range cert.DNSNames {
-				//log.Printf("  DNS: %s", dns)
 				logs = append(logs, fmt.Sprintf("  DNS: %s", dns))
 			}
 
-		case "2.5.29.15": // Key Usage
-			//log.Printf("%s: %s", extName, keyUsageString(cert.KeyUsage))
-			logs = append(logs, fmt.Sprintf("%s: %s", extName, keyUsageString(cert.KeyUsage)))
+			for _, ip := range cert.IPAddresses {
+				logs = append(logs, fmt.Sprintf("  IP: %s", ip.String()))
+			}
 
-		case "2.5.29.37": // Extended Key Usage
-			//log.Printf("%s: %s", extName, extKeyUsageString(cert.ExtKeyUsage))
-			logs = append(logs, fmt.Sprintf("%s: %s", extName, extKeyUsageString(cert.ExtKeyUsage)))
+			for _, email := range cert.EmailAddresses {
+				logs = append(logs, fmt.Sprintf("  Email: %s", email))
+			}
 
-		case "1.3.6.1.5.5.7.1.1": // AIA
+			for _, uri := range cert.URIs {
+				logs = append(logs, fmt.Sprintf("  URI: %s", uri.String()))
+			}
+
+		case "2.5.29.15":
+			logs = append(logs, fmt.Sprintf(
+				"%s: %s",
+				extName,
+				keyUsageString(cert.KeyUsage),
+			))
+
+		case "2.5.29.37":
+			logs = append(logs, fmt.Sprintf(
+				"%s: %s",
+				extName,
+				extKeyUsageString(cert.ExtKeyUsage),
+			))
+
+		case "1.3.6.1.5.5.7.1.1":
 			aia, err := x509extras.ParseAIA(ext.Value)
 			if err == nil {
-				//log.Printf("%s", getFriendlyName(oid)) // still works
-				//logs = append(logs, fmt.Sprintf("%s", getFriendlyName(oid)))
 				for _, ad := range aia {
-					//log.Printf("  %s: %s", x509extras.FriendlyAccessMethod(ad.Method), ad.URI)
-					logs = append(logs, fmt.Sprintf("  %s: %s", x509extras.FriendlyAccessMethod(ad.Method), ad.URI))
-
+					logs = append(logs, fmt.Sprintf(
+						"  %s: %s",
+						x509extras.FriendlyAccessMethod(ad.Method),
+						ad.URI,
+					))
 				}
 			} else {
-				//log.Printf("%s: failed to parse (%v)", getFriendlyName(oid), err)
-				logs = append(logs, fmt.Sprintf("%s: failed to parse (%v)", getFriendlyName(oid), err))
-
+				logs = append(logs, fmt.Sprintf(
+					"%s: failed to parse (%v)",
+					getFriendlyName(oid),
+					err,
+				))
 			}
 		}
 	}
 
-	//log.Println()
 	logs = append(logs, "")
+
 	return logs
 }
 
 func LogCsrInfo(csr *x509.CertificateRequest) []string {
 	var logs []string
-	//log.SetFlags(0)
-	//log.Println(strings.Repeat("-", 92))
+
 	logs = append(logs, strings.Repeat("-", 92))
+
 	if csr.Subject.CommonName != "" {
-		//log.Printf("Simple Name: %s", csr.Subject.CommonName)
-		logs = append(logs, fmt.Sprintf("Simple Name: %s", csr.Subject.CommonName))
+		logs = append(logs, fmt.Sprintf(
+			"Simple Name: %s",
+			csr.Subject.CommonName,
+		))
 	}
 
-	// Key Size
 	switch pub := csr.PublicKey.(type) {
 	case *rsa.PublicKey:
-		//log.Printf("Key Size: %d", pub.N.BitLen())
-		logs = append(logs, fmt.Sprintf("Key Size: %d", pub.N.BitLen()))
+		logs = append(logs, fmt.Sprintf(
+			"Key Size: %d",
+			pub.N.BitLen(),
+		))
 	case *ecdsa.PublicKey:
-		//log.Printf("Key Size: %d (ECDSA)", pub.Params().BitSize)
-		logs = append(logs, fmt.Sprintf("Key Size: %d (ECDSA)", pub.Params().BitSize))
+		logs = append(logs, fmt.Sprintf(
+			"Key Size: %d (ECDSA)",
+			pub.Params().BitSize,
+		))
 	default:
-		//log.Printf("Key Type: %T", pub)
-		logs = append(logs, fmt.Sprintf("Key Type: %T", pub))
+		logs = append(logs, fmt.Sprintf(
+			"Key Type: %T",
+			pub,
+		))
 	}
-	// Parse Extensions
+
 	for _, ext := range csr.Extensions {
 		oid := ext.Id.String()
 		extName := getFriendlyName(oid)
 
 		switch oid {
-		case "2.5.29.14": // SKID
+		case "2.5.29.14":
 			var skid []byte
+
 			_, err := asn1.Unmarshal(ext.Value, &skid)
 			if err == nil {
-				//log.Printf("SKID: %s", strings.ToUpper(hex.EncodeToString(skid)))
-				logs = append(logs, fmt.Sprintf("SKID: %s", strings.ToUpper(hex.EncodeToString(skid))))
+				logs = append(logs, fmt.Sprintf(
+					"SKID: %s",
+					strings.ToUpper(hex.EncodeToString(skid)),
+				))
 			}
-			//log.Printf("SKID%s: %s", criticalSuffix(isCritical), hex.EncodeToString(ext.Value))
 
-		case "2.5.29.17": // SAN
-			//log.Printf("%s", extName)
-			logs = append(logs, fmt.Sprintf("%s", extName))
+		case "2.5.29.17":
+			logs = append(logs, extName)
+
 			for _, dns := range csr.DNSNames {
-				//log.Printf("  DNS: %s", dns)
 				logs = append(logs, fmt.Sprintf("  DNS: %s", dns))
 			}
 
-		case "2.5.29.15": // Key Usage
+		case "2.5.29.15":
 			var usage x509.KeyUsage
 			var bitString asn1.BitString
+
 			if _, err := asn1.Unmarshal(ext.Value, &bitString); err == nil {
 				if bitString.BitLength >= 1 && bitString.At(0) == 1 {
 					usage |= x509.KeyUsageDigitalSignature
@@ -186,29 +327,45 @@ func LogCsrInfo(csr *x509.CertificateRequest) []string {
 				if bitString.BitLength >= 9 && bitString.At(8) == 1 {
 					usage |= x509.KeyUsageDecipherOnly
 				}
-				//log.Printf("%s: %s", extName, keyUsageString(usage))
-				logs = append(logs, fmt.Sprintf("%s: %s", extName, keyUsageString(usage)))
+
+				logs = append(logs, fmt.Sprintf(
+					"%s: %s",
+					extName,
+					keyUsageString(usage),
+				))
 			} else {
-				//log.Printf("%s: unable to parse Key Usage (%v)", extName, err)
-				logs = append(logs, fmt.Sprintf("%s: unable to parse Key Usage (%v)", extName, err))
+				logs = append(logs, fmt.Sprintf(
+					"%s: unable to parse Key Usage (%v)",
+					extName,
+					err,
+				))
 			}
 
-		case "2.5.29.37": // Extended Key Usage
+		case "2.5.29.37":
 			var ekuOIDs []asn1.ObjectIdentifier
+
 			if _, err := asn1.Unmarshal(ext.Value, &ekuOIDs); err == nil {
-				// Convert OIDs to ExtKeyUsage constants
 				var ekuNames []string
+
 				for _, oid := range ekuOIDs {
 					ekuNames = append(ekuNames, friendlyExtKeyUsage(oid))
 				}
-				//log.Printf("%s: %s", extName, strings.Join(ekuNames, ", "))
-				logs = append(logs, fmt.Sprintf("%s: %s", extName, strings.Join(ekuNames, ", ")))
+
+				logs = append(logs, fmt.Sprintf(
+					"%s: %s",
+					extName,
+					strings.Join(ekuNames, ", "),
+				))
 			} else {
-				//log.Printf("%s: unable to parse EKU (%v)", extName, err)
-				logs = append(logs, fmt.Sprintf("%s: unable to parse EKU (%v)", extName, err))
+				logs = append(logs, fmt.Sprintf(
+					"%s: unable to parse EKU (%v)",
+					extName,
+					err,
+				))
 			}
 		}
 	}
+
 	return logs
 }
 
@@ -217,14 +374,12 @@ func ComputeSKIDFromPublicKey(pubKey crypto.PublicKey) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	skid := sha1.Sum(pubBytes)
+
 	return skid[:], nil
 }
 
-/*
-This version is what gets used by LogCsrInfo. x509.CertificateRequest does not
-expose the KeyUsage type like x509.Certificate does so we have to parse from ASN1 data
-*/
 func friendlyExtKeyUsage(oid asn1.ObjectIdentifier) string {
 	switch {
 	case oid.Equal([]int{1, 3, 6, 1, 5, 5, 7, 3, 1}):
@@ -240,18 +395,24 @@ func friendlyExtKeyUsage(oid asn1.ObjectIdentifier) string {
 	}
 }
 
-func certFingerprintSHA1(cert *x509.Certificate) []byte {
-	fp := cert.Signature
-	if len(fp) > 20 {
-		fp = fp[:20]
-	}
-	return fp
+// certFingerprintSHA1 returns the SHA-1 fingerprint of the complete
+// DER-encoded certificate.
+func certFingerprintSHA1(cert *x509.Certificate) string {
+	fp := sha1.Sum(cert.Raw)
+	return strings.ToUpper(hex.EncodeToString(fp[:]))
+}
+// certFingerprintSHA256 returns the SHA-256 fingerprint of the
+// complete DER-encoded certificate.
+func certFingerprintSHA256(cert *x509.Certificate) string {
+	fp := sha256.Sum256(cert.Raw)
+	return strings.ToUpper(hex.EncodeToString(fp[:]))
 }
 
 func criticalSuffix(critical bool) string {
 	if critical {
 		return " (critical)"
 	}
+
 	return ""
 }
 
@@ -277,7 +438,12 @@ func getFriendlyName(oid string) string {
 }
 
 func keyUsageString(ku x509.KeyUsage) string {
+	return strings.Join(keyUsageList(ku), ", ")
+}
+
+func keyUsageList(ku x509.KeyUsage) []string {
 	var usages []string
+
 	if ku&x509.KeyUsageDigitalSignature != 0 {
 		usages = append(usages, "DigitalSignature")
 	}
@@ -305,11 +471,17 @@ func keyUsageString(ku x509.KeyUsage) string {
 	if ku&x509.KeyUsageDecipherOnly != 0 {
 		usages = append(usages, "DecipherOnly")
 	}
-	return strings.Join(usages, ", ")
+
+	return usages
 }
 
 func extKeyUsageString(usages []x509.ExtKeyUsage) string {
+	return strings.Join(extKeyUsageList(usages), ", ")
+}
+
+func extKeyUsageList(usages []x509.ExtKeyUsage) []string {
 	var result []string
+
 	for _, usage := range usages {
 		switch usage {
 		case x509.ExtKeyUsageServerAuth:
@@ -326,5 +498,6 @@ func extKeyUsageString(usages []x509.ExtKeyUsage) string {
 			result = append(result, fmt.Sprintf("Unknown (%d)", usage))
 		}
 	}
-	return strings.Join(result, ", ")
+
+	return result
 }
