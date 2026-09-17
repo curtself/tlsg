@@ -12,6 +12,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"path/filepath"
 	//"log"
 	"encoding/json"
 	"net/url"
@@ -509,6 +510,21 @@ func loadBinaryCertsFromFile(path string, pass string) ([]*x509.Certificate, err
 	return sorted, nil
 }
 
+// loads a private key from  a pfx file
+func loadPrivateKeyFromPFX(path string, pass string) (any, error) {
+	certBytes, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	key, _, _, err := pkcs12.DecodeChain(certBytes, pass)
+	if err != nil {
+		return nil, err
+	}
+
+	return key, nil
+}
+
 func writeCertsToPem(path string, certs []*x509.Certificate) error {
 	f, err := os.Create(path)
 	if err != nil {
@@ -590,6 +606,76 @@ func (c *CertificateService) Metadata(opts options.MetadataOptions) ([]string, e
 			"Metadata written to %s",
 			opts.OutputFile,
 		))
+	}
+
+	return logs, nil
+}
+
+// split section
+func (c *CertificateService) Split(opts options.SplitOptions) ([]string, error) {
+	var logs []string
+
+	logs = append(logs, strings.Repeat("-", 92))
+	logs = append(logs, "Split verb called")
+
+	certs, err := loadCertsFromFile(opts.Certificate, opts.Password)
+	if err != nil {
+		logs = append(logs, fmt.Sprintf("reading certificates failed: %v", err))
+		return logs, err
+	}
+
+	if len(certs) == 0 {
+		return logs, errors.New("no certificates found")
+	}
+
+	if err := os.MkdirAll(opts.OutputDir, 0755); err != nil {
+		return logs, fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	intermediateCount := 0
+	var commonName string
+	for i, cert := range certs {
+		var fileName string
+
+		if i == 0 {
+			commonName = cert.Subject.CommonName
+			fileName = fmt.Sprintf("%s.pem", commonName)
+		} else if isSelfSigned(cert) {
+			fileName = "root.pem"
+		} else {
+			intermediateCount++
+			fileName = fmt.Sprintf("intermediate%02d.pem", intermediateCount)
+		}
+
+		outputPath := filepath.Join(opts.OutputDir, fileName)
+
+		if err := writeCertsToPem(outputPath, []*x509.Certificate{cert}); err != nil {
+			logs = append(logs, fmt.Sprintf("failed to write %s: %v", outputPath, err))
+			return logs, err
+		}
+
+		logs = append(logs, fmt.Sprintf("wrote certificate to %s", outputPath))
+
+	}
+	if opts.KeyExtract {
+		key, err := loadPrivateKeyFromPFX(opts.Certificate, opts.Password)
+		if err != nil {
+			return logs, fmt.Errorf("failed to extract private key: %w", err)
+		}
+
+		keyBytes, err := x509.MarshalPKCS8PrivateKey(key)
+		if err != nil {
+			return logs, fmt.Errorf("failed to encode private key: %w", err)
+		}
+
+		keyPath := filepath.Join(opts.OutputDir, fmt.Sprintf("%s.key", commonName))
+		keyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyBytes})
+
+		if err := os.WriteFile(keyPath, keyPEM, 0600); err != nil {
+			return logs, fmt.Errorf("failed to write private key: %w", err)
+		}
+
+		logs = append(logs, fmt.Sprintf("wrote private key to %s", keyPath))
 	}
 
 	return logs, nil
