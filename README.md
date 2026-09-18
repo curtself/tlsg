@@ -2,7 +2,7 @@
 
 Application to manage various tasks for SSL and CSRs without needing to use IIS or openssl.
 
-There are four main features provided by command line argument verbs:
+These are the main features provided by command line argument verbs:
 
 - create
 - finish
