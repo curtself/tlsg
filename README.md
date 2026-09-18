@@ -2,12 +2,14 @@
 
 Application to manage various tasks for SSL and CSRs without needing to use IIS or openssl.
 
-There are four main features provided by command line argument verbs:
+These are the main features provided by command line argument verbs:
 
 - create
 - finish
 - info
 - extract
+- split
+- metadata
 
 ## Create Command
 
@@ -90,6 +92,8 @@ Flags:
   -p, --password string    Password (optional, used with pkcs12/pfx files)
   -s, --short-summary      Show short summary (optional)
   -u, --url stringArray    URL list (optional)
+  -q, --query string       Query mode - returns JSON of the matching metadata
+  -o, --output string      For --url/--host save the certificate chain to a file
 
 Examples:
 #Will show information about a csr
@@ -102,6 +106,11 @@ tlsg info --cert _dev.sdccd.edu.pem --csr _dev.sdccd.edu.csr
 tlsg info -c _dev.sdccd.edu.pem _test.sdccd.edu.pem
 #You can also include multiple URLs, seperated by spaces
 tlsg info -u https://myportal.sdccd.edu https://www.sdccd.edu
+#You can download a remote certificate
+tlsg info -u https://myportal.sdccd.edu -o certs/myportal.sdccd.edu.cer
+#To query expiration date
+tlsg info -c certs/www.sdccd.edu.cer --query notAfter
+{"notAfter":"2026-12-05T14:04:27Z"}
 ```
 
 ## Extract Command
@@ -128,5 +137,50 @@ tlsg extract -c _dev.sdccd.edu.pem -o _dev.sdccd.edu-webchain.pem
 tlsg extract -c _dev.sdccd.edu.pem -n 1 -o _dev.sdccd.edu-subject.pem
 #will extract only the intermediate certificate
 tlsg extract -c _dev.sdccd.edu.pem -n 1 -s 1 -o _dev.sdccd.edu-intermediate.pem
+```
+
+## Split Command
+
+Use the _split_ command to save each part of a certificate chain to a new file.
+
+```bash
+tlsg help split
+Usage:
+  tlsg split [flags]
+
+Flags:
+  -c, --cert string       Certificate file
+  -h, --help              help for split
+  -k, --key               Extract a key if present
+  -o, --output string     Output directory
+  -p, --password string   Password (optional), used with pkcs12/pfx files)
+  -v, --verbose           Verbose output
+
+Examples:
+#Will split a chain and save each cert in certs/www.sdccd.edu/ directory
+tlsg split -c certs/www.sdccd.edu.cer -o certs/www.sdccd.edu
+#Will split a chain, save each cert, and save the key in certs/myportal.sdccd.edu directory
+tlsg split -c certs/myportal.sdccd.edu.cer -o certs/myportal.sdccd.edu --password "your_pfx_password" -k
+```
+
+## Metadata Command
+
+Use the _metadata_ command to save a certificate's metadata to a JSON file.
+
+```bash
+tlsg help metadata
+Usage:
+  tlsg metadata [flags]
+
+Flags:
+  -c, --cert stringArray   Certificate file
+  -h, --help               help for metadata
+  -o, --output string      Output file path
+  -p, --password string    Password (optional), used with pkcs12/pfx files
+  -v, --verbose            Verbose output
+
+Examples:
+#Will generate metadata for a certificate
+tlsg metadata -c certs/www.sdccd.edu.cer -o certs/www.sdccd.edu.json
 ```
 

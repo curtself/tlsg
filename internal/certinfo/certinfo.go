@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"encoding/asn1"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -102,6 +103,27 @@ func GetCertInfo(cert *x509.Certificate) CertInfo {
 	}
 
 	return info
+}
+
+func QueryCertInfo(cert *x509.Certificate, query string) ([]byte, error) {
+	info := GetCertInfo(cert)
+
+	data, err := json.Marshal(info)
+	if err != nil {
+		return nil, err
+	}
+
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return nil, err
+	}
+
+	value, ok := fields[query]
+	if !ok {
+		return nil, fmt.Errorf("unknown certificate info field: %s", query)
+	}
+
+	return json.Marshal(map[string]json.RawMessage{query: value})
 }
 
 func isSelfSigned(cert *x509.Certificate) bool {
