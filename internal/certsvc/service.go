@@ -809,6 +809,14 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error)
 				logs = append(logs, fmt.Sprintf("Got host [%s] from options", host))
 			}
 			if err == nil {
+				// save to output file if needed
+				if opts.OutputFile != "" {
+					if err := writeCertsToPem(opts.OutputFile, certs); err != nil {
+						logs = append(logs, fmt.Sprintf("failed to write certificate: %v", err))
+						return logs, err
+					}
+					logs = append(logs, fmt.Sprintf("wrote certificate chain to %s", opts.OutputFile))
+				}
 				// handle query if present
 				if opts.Query != "" {
 					result, err := certinfo.QueryCertInfo(certs[0], opts.Query)
@@ -847,6 +855,14 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error)
 			h := handshake.New(host, v)
 			certs, err := h.PerformHandshake()
 			if err == nil {
+				// save to output file if needed
+				if opts.OutputFile != "" {
+					if err := writeCertsToPem(opts.OutputFile, certs); err != nil {
+						logs = append(logs, fmt.Sprintf("failed to write certificate: %v", err))
+						return logs, err
+					}
+					logs = append(logs, fmt.Sprintf("wrote certificate chain to %s", opts.OutputFile))
+				}
 				// handle query if present
 				if opts.Query != "" {
 					result, err := certinfo.QueryCertInfo(certs[0], opts.Query)

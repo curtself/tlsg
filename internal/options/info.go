@@ -10,6 +10,7 @@ type InfoOptions struct {
 	URLs         []string
 	Hosts        map[string]string
 	CSR          string
+	OutputFile   string
 	ShortSummary bool
 	Password     string
 	Query        string
@@ -30,6 +31,9 @@ func (opts *InfoOptions) Validate() error {
 	}
 	if opts.Query != "" && opts.ShortSummary {
 		return errors.New("query and summary cannot be used together")
+	}
+	if (certCount > 1 || hasCsr) && opts.OutputFile != "" {
+		return errors.New("output file cannot be used with local files")
 	}
 	if opts.Password == "" {
 		if os.Getenv("sslpass") == "changeit" {

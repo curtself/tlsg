@@ -55,6 +55,7 @@ func init() {
 	infoCmd.Flags().StringVarP(&infoOpts.Password, "password", "p", "", "Password (optional, used with pkcs12/pfx files)")
 	infoCmd.Flags().BoolVarP(&infoOpts.ShortSummary, "short-summary", "s", false, "Show short summary (optional)")
 	infoCmd.Flags().StringVarP(&infoOpts.Query, "query", "q", "", "Show only the specified certificate information field")
+	infoCmd.Flags().StringVarP(&infoOpts.OutputFile, "output", "o", "", "Save to output file (--url/--host only)")
 	rootCmd.AddCommand(infoCmd)
 
 }
