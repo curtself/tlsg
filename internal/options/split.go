@@ -9,7 +9,7 @@ type SplitOptions struct {
 	Certificate string
 	OutputDir   string
 	Password    string
-	KeyExtract	bool
+	KeyExtract  bool
 	Verbose     bool
 }
 
