@@ -32,8 +32,11 @@ func (opts *InfoOptions) Validate() error {
 	if opts.Query != "" && opts.ShortSummary {
 		return errors.New("query and summary cannot be used together")
 	}
-	if (certCount > 1 || hasCsr) && opts.OutputFile != "" {
+	if (certCount > 0 || hasCsr) && opts.OutputFile != "" {
 		return errors.New("output file cannot be used with local files")
+	}
+	if opts.OutputFile != "" && urlCount+hostCount != 1 {
+		return errors.New("output file requires exactly one url or host")
 	}
 	if opts.Password == "" {
 		if os.Getenv("sslpass") == "changeit" {
