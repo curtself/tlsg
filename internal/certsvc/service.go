@@ -12,6 +12,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"path/filepath"
 	//"log"
 	"encoding/json"
 	"net/url"
@@ -509,6 +510,21 @@ func loadBinaryCertsFromFile(path string, pass string) ([]*x509.Certificate, err
 	return sorted, nil
 }
 
+// loads a private key from  a pfx file
+func loadPrivateKeyFromPFX(path string, pass string) (any, error) {
+	certBytes, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	key, _, _, err := pkcs12.DecodeChain(certBytes, pass)
+	if err != nil {
+		return nil, err
+	}
+
+	return key, nil
+}
+
 func writeCertsToPem(path string, certs []*x509.Certificate) error {
 	f, err := os.Create(path)
 	if err != nil {
@@ -595,6 +611,76 @@ func (c *CertificateService) Metadata(opts options.MetadataOptions) ([]string, e
 	return logs, nil
 }
 
+// split section
+func (c *CertificateService) Split(opts options.SplitOptions) ([]string, error) {
+	var logs []string
+
+	logs = append(logs, strings.Repeat("-", 92))
+	logs = append(logs, "Split verb called")
+
+	certs, err := loadCertsFromFile(opts.Certificate, opts.Password)
+	if err != nil {
+		logs = append(logs, fmt.Sprintf("reading certificates failed: %v", err))
+		return logs, err
+	}
+
+	if len(certs) == 0 {
+		return logs, errors.New("no certificates found")
+	}
+
+	if err := os.MkdirAll(opts.OutputDir, 0755); err != nil {
+		return logs, fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	intermediateCount := 0
+	var commonName string
+	for i, cert := range certs {
+		var fileName string
+
+		if i == 0 {
+			commonName = cert.Subject.CommonName
+			fileName = fmt.Sprintf("%s.pem", commonName)
+		} else if isSelfSigned(cert) {
+			fileName = "root.pem"
+		} else {
+			intermediateCount++
+			fileName = fmt.Sprintf("intermediate%02d.pem", intermediateCount)
+		}
+
+		outputPath := filepath.Join(opts.OutputDir, fileName)
+
+		if err := writeCertsToPem(outputPath, []*x509.Certificate{cert}); err != nil {
+			logs = append(logs, fmt.Sprintf("failed to write %s: %v", outputPath, err))
+			return logs, err
+		}
+
+		logs = append(logs, fmt.Sprintf("wrote certificate to %s", outputPath))
+
+	}
+	if opts.KeyExtract {
+		key, err := loadPrivateKeyFromPFX(opts.Certificate, opts.Password)
+		if err != nil {
+			return logs, fmt.Errorf("failed to extract private key: %w", err)
+		}
+
+		keyBytes, err := x509.MarshalPKCS8PrivateKey(key)
+		if err != nil {
+			return logs, fmt.Errorf("failed to encode private key: %w", err)
+		}
+
+		keyPath := filepath.Join(opts.OutputDir, fmt.Sprintf("%s.key", commonName))
+		keyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyBytes})
+
+		if err := os.WriteFile(keyPath, keyPEM, 0600); err != nil {
+			return logs, fmt.Errorf("failed to write private key: %w", err)
+		}
+
+		logs = append(logs, fmt.Sprintf("wrote private key to %s", keyPath))
+	}
+
+	return logs, nil
+}
+
 // extract section
 func (c *CertificateService) Extract(opts options.ExtractOptions) ([]string, error) {
 	var logs []string
@@ -647,50 +733,50 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error)
 			format := certformat.CertificateFormat.Detect(path)
 			switch format {
 			case certformat.DER:
-				//fmt.Println("Binary certificate file found: ", path)
 				certs, err := loadBinaryCertsFromFile(path, opts.Password)
 				if err == nil {
+					// handle query if present
+					if opts.Query != "" {
+						result, err := certinfo.QueryCertInfo(certs[0], opts.Query)
+						if err != nil {
+							return logs, err
+						}
+
+						return []string{string(result)}, nil
+					}
 					if !opts.ShortSummary {
 						for _, cert := range certs {
 							logs = append(logs, certinfo.LogCertInfo(cert)...)
 						}
 					}
-					//fmt.Println(strings.Repeat("-", 92))
-					//fmt.Println("Chain summary")
 					logs = append(logs, strings.Repeat("-", 92))
 					logs = append(logs, "Chain summary")
 					logs = append(logs, certinfo.LogChainSummary(certs)...)
-					/*
-						for i, cert := range certs {
-							certinfo.LogCertSummary(cert, i)
-						}
-					*/
 				} else {
-					//fmt.Println(fmt.Errorf("reading certificates failed: %w", err))
 					logs = append(logs, fmt.Sprintf("reading certificates failed: %v", errors.Unwrap(err)))
 					return logs, err
 				}
 			case certformat.PEM:
-				//fmt.Println("PEM certificate file found: ", path)
 				certs, err := loadPemCertsFromFile(path)
 				if err == nil {
+					// handle query if present
+					if opts.Query != "" {
+						result, err := certinfo.QueryCertInfo(certs[0], opts.Query)
+						if err != nil {
+							return logs, err
+						}
+
+						return []string{string(result)}, nil
+					}
 					if !opts.ShortSummary {
 						for _, cert := range certs {
 							logs = append(logs, certinfo.LogCertInfo(cert)...)
 						}
 					}
-					//fmt.Println(strings.Repeat("-", 92))
-					//fmt.Println("Chain summary")
 					logs = append(logs, strings.Repeat("-", 92))
 					logs = append(logs, "Chain summary")
 					logs = append(logs, certinfo.LogChainSummary(certs)...)
-					/*
-						for i, cert := range certs {
-							certinfo.LogCertSummary(cert, i)
-						}
-					*/
 				} else {
-					//fmt.Println(fmt.Errorf("reading certificates failed: %w", err))
 					logs = append(logs, fmt.Sprintf("reading certificates failed: %v", errors.Unwrap(err)))
 					return logs, err
 				}
@@ -698,11 +784,9 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error)
 		}
 	}
 	if opts.CSR != "" {
-		//fmt.Printf("reading CSR from file: %s\n", opts.CSR)
 		logs = append(logs, fmt.Sprintf("reading CSR from file: %s", opts.CSR))
 		csr, err := loadCsrFromFile(opts.CSR)
 		if err != nil {
-			//fmt.Println(fmt.Errorf("reading CSR failed: %w", err))
 			logs = append(logs, fmt.Sprintf("reading CSR failed: %v", errors.Unwrap(err)))
 			return logs, err
 		}
@@ -715,41 +799,48 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error)
 			}
 			u, err := url.Parse(urlString)
 			if err != nil {
-				//log.Fatal(err)
 				logs = append(logs, fmt.Sprintf("Error: %v", errors.Unwrap(err)))
 				return logs, err
 			}
 			host := u.Host
 			h := handshake.New(host, "")
 			certs, err := h.PerformHandshake()
-			//fmt.Printf("Got host [%s] from options\n", host)
-			logs = append(logs, fmt.Sprintf("Got host [%s] from options", host))
+			if opts.Verbose {
+				logs = append(logs, fmt.Sprintf("Got host [%s] from options", host))
+			}
 			if err == nil {
+				// save to output file if needed
+				if opts.OutputFile != "" {
+					if err := writeCertsToPem(opts.OutputFile, certs); err != nil {
+						logs = append(logs, fmt.Sprintf("failed to write certificate: %v", err))
+						return logs, err
+					}
+					logs = append(logs, fmt.Sprintf("wrote certificate chain to %s", opts.OutputFile))
+				}
+				// handle query if present
+				if opts.Query != "" {
+					result, err := certinfo.QueryCertInfo(certs[0], opts.Query)
+					if err != nil {
+						return logs, err
+					}
+
+					return []string{string(result)}, nil
+				}
 				if !opts.ShortSummary {
 					for _, cert := range certs {
 						logs = append(logs, certinfo.LogCertInfo(cert)...)
 					}
 				}
-				//fmt.Println(strings.Repeat("-", 92))
-				//fmt.Println("Chain summary")
 				logs = append(logs, strings.Repeat("-", 92))
 				logs = append(logs, "Chain summary")
 				logs = append(logs, certinfo.LogChainSummary(certs)...)
-				/*
-					for i, cert := range certs {
-						certinfo.LogCertSummary(cert, i)
-					}
-				*/
 			} else {
-				//fmt.Println(fmt.Errorf("reading certificates failed: %w", err))
-				//log.Fatal(err)
 				logs = append(logs, fmt.Sprintf("reading certificates failed: %v", errors.Unwrap(err)))
 				return logs, err
 			}
 		}
 	}
 	if len(opts.Hosts) > 0 {
-		//fmt.Println("reading certificates from host(s)")
 		logs = append(logs, "reading certificates from host(s)")
 		for k, v := range opts.Hosts {
 			if !strings.HasPrefix(k, "http") {
@@ -757,7 +848,6 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error)
 			}
 			u, err := url.Parse(k)
 			if err != nil {
-				//log.Fatal(err)
 				logs = append(logs, fmt.Sprintf("Error parsing URL: %v", errors.Unwrap(err)))
 				return logs, err
 			}
@@ -765,20 +855,33 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error)
 			h := handshake.New(host, v)
 			certs, err := h.PerformHandshake()
 			if err == nil {
+				// save to output file if needed
+				if opts.OutputFile != "" {
+					if err := writeCertsToPem(opts.OutputFile, certs); err != nil {
+						logs = append(logs, fmt.Sprintf("failed to write certificate: %v", err))
+						return logs, err
+					}
+					logs = append(logs, fmt.Sprintf("wrote certificate chain to %s", opts.OutputFile))
+				}
+				// handle query if present
+				if opts.Query != "" {
+					result, err := certinfo.QueryCertInfo(certs[0], opts.Query)
+					if err != nil {
+						return logs, err
+					}
+
+					return []string{string(result)}, nil
+				}
 				if !opts.ShortSummary {
 					for _, cert := range certs {
 						logs = append(logs, certinfo.LogCertInfo(cert)...)
 					}
 				}
-				//fmt.Println(strings.Repeat("-", 92))
-				//fmt.Println("Chain summary")
 				logs = append(logs, strings.Repeat("-", 92))
 				logs = append(logs, "Chain summary")
 				logs = append(logs, certinfo.LogChainSummary(certs)...)
 			} else {
-				//fmt.Println(fmt.Errorf("reading certificates failed: %w", err))
 				logs = append(logs, fmt.Sprintf("reading certificates failed: %v", errors.Unwrap(err)))
-				//log.Fatal(err)
 				return logs, err
 			}
 		}

@@ -28,7 +28,7 @@ var infoCmd = &cobra.Command{
 			if len(parts) != 2 {
 				return fmt.Errorf("Invalid host format: %s (expected host=address)", pair)
 			}
-			fmt.Printf("Adding host:addr of %s:%s\n", parts[0], parts[1])
+			//fmt.Printf("Adding host:addr of %s:%s\n", parts[0], parts[1])
 			infoOpts.Hosts[parts[0]] = parts[1]
 		}
 		if err := infoOpts.Validate(); err != nil {
@@ -54,6 +54,8 @@ func init() {
 	infoCmd.Flags().StringVarP(&infoOpts.CSR, "csr", "r", "", "CSR file (optional)")
 	infoCmd.Flags().StringVarP(&infoOpts.Password, "password", "p", "", "Password (optional, used with pkcs12/pfx files)")
 	infoCmd.Flags().BoolVarP(&infoOpts.ShortSummary, "short-summary", "s", false, "Show short summary (optional)")
+	infoCmd.Flags().StringVarP(&infoOpts.Query, "query", "q", "", "Show only the specified certificate information field")
+	infoCmd.Flags().StringVarP(&infoOpts.OutputFile, "output", "o", "", "Save to output file (--url/--host only)")
 	rootCmd.AddCommand(infoCmd)
 
 }
