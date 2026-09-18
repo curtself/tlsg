@@ -12,6 +12,8 @@ type InfoOptions struct {
 	CSR          string
 	ShortSummary bool
 	Password     string
+	Query        string
+	Verbose      bool
 }
 
 func (opts *InfoOptions) Validate() error {
@@ -25,6 +27,9 @@ func (opts *InfoOptions) Validate() error {
 	}
 	if certCount+urlCount+hostCount+csrCount == 0 {
 		return errors.New("you must provide at least one certificate, url, host, or CSR")
+	}
+	if opts.Query != "" && opts.ShortSummary {
+		return errors.New("query and summary cannot be used together")
 	}
 	if opts.Password == "" {
 		if os.Getenv("sslpass") == "changeit" {

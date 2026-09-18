@@ -733,50 +733,50 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error)
 			format := certformat.CertificateFormat.Detect(path)
 			switch format {
 			case certformat.DER:
-				//fmt.Println("Binary certificate file found: ", path)
 				certs, err := loadBinaryCertsFromFile(path, opts.Password)
 				if err == nil {
+					// handle query if present
+					if opts.Query != "" {
+						result, err := certinfo.QueryCertInfo(certs[0], opts.Query)
+						if err != nil {
+							return logs, err
+						}
+
+						return []string{string(result)}, nil
+					}
 					if !opts.ShortSummary {
 						for _, cert := range certs {
 							logs = append(logs, certinfo.LogCertInfo(cert)...)
 						}
 					}
-					//fmt.Println(strings.Repeat("-", 92))
-					//fmt.Println("Chain summary")
 					logs = append(logs, strings.Repeat("-", 92))
 					logs = append(logs, "Chain summary")
 					logs = append(logs, certinfo.LogChainSummary(certs)...)
-					/*
-						for i, cert := range certs {
-							certinfo.LogCertSummary(cert, i)
-						}
-					*/
 				} else {
-					//fmt.Println(fmt.Errorf("reading certificates failed: %w", err))
 					logs = append(logs, fmt.Sprintf("reading certificates failed: %v", errors.Unwrap(err)))
 					return logs, err
 				}
 			case certformat.PEM:
-				//fmt.Println("PEM certificate file found: ", path)
 				certs, err := loadPemCertsFromFile(path)
 				if err == nil {
+					// handle query if present
+					if opts.Query != "" {
+						result, err := certinfo.QueryCertInfo(certs[0], opts.Query)
+						if err != nil {
+							return logs, err
+						}
+
+						return []string{string(result)}, nil
+					}
 					if !opts.ShortSummary {
 						for _, cert := range certs {
 							logs = append(logs, certinfo.LogCertInfo(cert)...)
 						}
 					}
-					//fmt.Println(strings.Repeat("-", 92))
-					//fmt.Println("Chain summary")
 					logs = append(logs, strings.Repeat("-", 92))
 					logs = append(logs, "Chain summary")
 					logs = append(logs, certinfo.LogChainSummary(certs)...)
-					/*
-						for i, cert := range certs {
-							certinfo.LogCertSummary(cert, i)
-						}
-					*/
 				} else {
-					//fmt.Println(fmt.Errorf("reading certificates failed: %w", err))
 					logs = append(logs, fmt.Sprintf("reading certificates failed: %v", errors.Unwrap(err)))
 					return logs, err
 				}
@@ -784,11 +784,9 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error)
 		}
 	}
 	if opts.CSR != "" {
-		//fmt.Printf("reading CSR from file: %s\n", opts.CSR)
 		logs = append(logs, fmt.Sprintf("reading CSR from file: %s", opts.CSR))
 		csr, err := loadCsrFromFile(opts.CSR)
 		if err != nil {
-			//fmt.Println(fmt.Errorf("reading CSR failed: %w", err))
 			logs = append(logs, fmt.Sprintf("reading CSR failed: %v", errors.Unwrap(err)))
 			return logs, err
 		}
@@ -801,41 +799,40 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error)
 			}
 			u, err := url.Parse(urlString)
 			if err != nil {
-				//log.Fatal(err)
 				logs = append(logs, fmt.Sprintf("Error: %v", errors.Unwrap(err)))
 				return logs, err
 			}
 			host := u.Host
 			h := handshake.New(host, "")
 			certs, err := h.PerformHandshake()
-			//fmt.Printf("Got host [%s] from options\n", host)
-			logs = append(logs, fmt.Sprintf("Got host [%s] from options", host))
+			if opts.Verbose {
+				logs = append(logs, fmt.Sprintf("Got host [%s] from options", host))
+			}
 			if err == nil {
+				// handle query if present
+				if opts.Query != "" {
+					result, err := certinfo.QueryCertInfo(certs[0], opts.Query)
+					if err != nil {
+						return logs, err
+					}
+
+					return []string{string(result)}, nil
+				}
 				if !opts.ShortSummary {
 					for _, cert := range certs {
 						logs = append(logs, certinfo.LogCertInfo(cert)...)
 					}
 				}
-				//fmt.Println(strings.Repeat("-", 92))
-				//fmt.Println("Chain summary")
 				logs = append(logs, strings.Repeat("-", 92))
 				logs = append(logs, "Chain summary")
 				logs = append(logs, certinfo.LogChainSummary(certs)...)
-				/*
-					for i, cert := range certs {
-						certinfo.LogCertSummary(cert, i)
-					}
-				*/
 			} else {
-				//fmt.Println(fmt.Errorf("reading certificates failed: %w", err))
-				//log.Fatal(err)
 				logs = append(logs, fmt.Sprintf("reading certificates failed: %v", errors.Unwrap(err)))
 				return logs, err
 			}
 		}
 	}
 	if len(opts.Hosts) > 0 {
-		//fmt.Println("reading certificates from host(s)")
 		logs = append(logs, "reading certificates from host(s)")
 		for k, v := range opts.Hosts {
 			if !strings.HasPrefix(k, "http") {
@@ -843,7 +840,6 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error)
 			}
 			u, err := url.Parse(k)
 			if err != nil {
-				//log.Fatal(err)
 				logs = append(logs, fmt.Sprintf("Error parsing URL: %v", errors.Unwrap(err)))
 				return logs, err
 			}
@@ -851,20 +847,25 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error)
 			h := handshake.New(host, v)
 			certs, err := h.PerformHandshake()
 			if err == nil {
+				// handle query if present
+				if opts.Query != "" {
+					result, err := certinfo.QueryCertInfo(certs[0], opts.Query)
+					if err != nil {
+						return logs, err
+					}
+
+					return []string{string(result)}, nil
+				}
 				if !opts.ShortSummary {
 					for _, cert := range certs {
 						logs = append(logs, certinfo.LogCertInfo(cert)...)
 					}
 				}
-				//fmt.Println(strings.Repeat("-", 92))
-				//fmt.Println("Chain summary")
 				logs = append(logs, strings.Repeat("-", 92))
 				logs = append(logs, "Chain summary")
 				logs = append(logs, certinfo.LogChainSummary(certs)...)
 			} else {
-				//fmt.Println(fmt.Errorf("reading certificates failed: %w", err))
 				logs = append(logs, fmt.Sprintf("reading certificates failed: %v", errors.Unwrap(err)))
-				//log.Fatal(err)
 				return logs, err
 			}
 		}
