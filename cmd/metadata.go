@@ -38,5 +38,6 @@ func init() {
 	metadataCmd.Flags().StringVarP(&metadataOpts.OutputFile, "output", "o", "", "Output file path")
 	metadataCmd.Flags().StringVarP(&metadataOpts.Password, "password", "p", "", "Password (optional), used with pkcs12/pfx files")
 	metadataCmd.Flags().BoolVarP(&metadataOpts.Verbose, "verbose", "v", false, "Verbose output")
+	metadataCmd.Flags().StringVarP(&metadataOpts.ThumbprintFormatter, "formatter", "f", "", "Format character for thumbprints")
 	rootCmd.AddCommand(metadataCmd)
 }

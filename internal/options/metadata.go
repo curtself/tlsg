@@ -6,10 +6,11 @@ import (
 )
 
 type MetadataOptions struct {
-	Certificates []string
-	OutputFile   string
-	Password     string
-	Verbose      bool
+	Certificates        []string
+	OutputFile          string
+	Password            string
+	ThumbprintFormatter string
+	Verbose             bool
 }
 
 func (opts *MetadataOptions) Validate() error {

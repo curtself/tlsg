@@ -6,15 +6,16 @@ import (
 )
 
 type InfoOptions struct {
-	Certificates []string
-	URLs         []string
-	Hosts        map[string]string
-	CSR          string
-	OutputFile   string
-	ShortSummary bool
-	Password     string
-	Query        string
-	Verbose      bool
+	Certificates        []string
+	URLs                []string
+	Hosts               map[string]string
+	CSR                 string
+	OutputFile          string
+	ShortSummary        bool
+	Password            string
+	Query               string
+	ThumbprintFormatter string
+	Verbose             bool
 }
 
 func (opts *InfoOptions) Validate() error {

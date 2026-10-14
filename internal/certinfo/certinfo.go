@@ -53,7 +53,7 @@ type AuthorityInfo struct {
 }
 
 // GetCertInfo extracts structured information from a certificate.
-func GetCertInfo(cert *x509.Certificate) CertInfo {
+func GetCertInfo(cert *x509.Certificate, formatter string) CertInfo {
 	info := CertInfo{
 		CommonName:         cert.Subject.CommonName,
 		SubjectDN:          cert.Subject.String(),
@@ -62,8 +62,8 @@ func GetCertInfo(cert *x509.Certificate) CertInfo {
 		Issuer:             cert.Issuer.CommonName,
 		IssuerDN:           cert.Issuer.String(),
 		SerialNumber:       cert.SerialNumber.String(),
-		Thumbprint:         certFingerprintSHA1(cert),
-		Thumbprint256:      certFingerprintSHA256(cert),
+		Thumbprint:         formatThumbprint(certFingerprintSHA1(cert), formatter),
+		Thumbprint256:      formatThumbprint(certFingerprintSHA256(cert), formatter),
 		IsCA:               cert.IsCA,
 		SelfSigned:         isSelfSigned(cert),
 		SubjectKeyID:       hex.EncodeToString(cert.SubjectKeyId),
@@ -105,8 +105,8 @@ func GetCertInfo(cert *x509.Certificate) CertInfo {
 	return info
 }
 
-func QueryCertInfo(cert *x509.Certificate, query string) ([]byte, error) {
-	info := GetCertInfo(cert)
+func QueryCertInfo(cert *x509.Certificate, query string, formatter string) ([]byte, error) {
+	info := GetCertInfo(cert, formatter)
 
 	data, err := json.Marshal(info)
 	if err != nil {
@@ -158,9 +158,9 @@ func LogChainSummary(chain []*x509.Certificate) []string {
 }
 
 // LogCertInfo prints details of the given certificate.
-func LogCertInfo(cert *x509.Certificate) []string {
+func LogCertInfo(cert *x509.Certificate, formatter string) []string {
 	var logs []string
-	info := GetCertInfo(cert)
+	info := GetCertInfo(cert, formatter)
 
 	logs = append(logs, strings.Repeat("-", 92))
 
@@ -523,4 +523,22 @@ func extKeyUsageList(usages []x509.ExtKeyUsage) []string {
 	}
 
 	return result
+}
+
+func formatThumbprint(thumbprint string, formatter string) string {
+	if formatter == "" {
+		return thumbprint
+	}
+
+	var result strings.Builder
+	result.Grow(len(thumbprint) + len(thumbprint)/2)
+
+	for i := 0; i < len(thumbprint); i += 2 {
+		if i > 0 {
+			result.WriteString(formatter)
+		}
+		result.WriteString(thumbprint[i : i+2])
+	}
+
+	return result.String()
 }
