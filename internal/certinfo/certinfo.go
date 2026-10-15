@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
@@ -61,7 +62,7 @@ func GetCertInfo(cert *x509.Certificate, formatter string) CertInfo {
 		NotAfter:           cert.NotAfter,
 		Issuer:             cert.Issuer.CommonName,
 		IssuerDN:           cert.Issuer.String(),
-		SerialNumber:       cert.SerialNumber.String(),
+		SerialNumber:       formatSerialNumber(cert.SerialNumber),
 		Thumbprint:         formatThumbprint(certFingerprintSHA1(cert), formatter),
 		Thumbprint256:      formatThumbprint(certFingerprintSHA256(cert), formatter),
 		IsCA:               cert.IsCA,
@@ -525,6 +526,13 @@ func extKeyUsageList(usages []x509.ExtKeyUsage) []string {
 	return result
 }
 
+func formatSerialNumber(serial *big.Int) string {
+	serialString := fmt.Sprintf("%x", serial)
+	if len(serialString) > 0 && serial.BitLen() > 0 && serial.BitLen()%8 == 0 {
+		serialString = "00" + serialString
+	}
+	return serialString
+}
 func formatThumbprint(thumbprint string, formatter string) string {
 	if formatter == "" {
 		return thumbprint
