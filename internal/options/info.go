@@ -15,6 +15,7 @@ type InfoOptions struct {
 	Password            string
 	Query               string
 	ThumbprintFormatter string
+	Lower               bool
 	Verbose             bool
 }
 

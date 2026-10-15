@@ -18,6 +18,11 @@ import (
 	"tlsg/internal/x509extras"
 )
 
+type CertInfoFormatting struct {
+	Formatter string
+	Lower     bool
+}
+
 // CertInfo contains structured information about an X.509 certificate.
 // It is suitable for both human-readable output and JSON serialization.
 type CertInfo struct {
@@ -54,7 +59,7 @@ type AuthorityInfo struct {
 }
 
 // GetCertInfo extracts structured information from a certificate.
-func GetCertInfo(cert *x509.Certificate, formatter string) CertInfo {
+func GetCertInfo(cert *x509.Certificate, cif CertInfoFormatting) CertInfo {
 	info := CertInfo{
 		CommonName:         cert.Subject.CommonName,
 		SubjectDN:          cert.Subject.String(),
@@ -62,13 +67,13 @@ func GetCertInfo(cert *x509.Certificate, formatter string) CertInfo {
 		NotAfter:           cert.NotAfter,
 		Issuer:             cert.Issuer.CommonName,
 		IssuerDN:           cert.Issuer.String(),
-		SerialNumber:       formatSerialNumber(cert.SerialNumber),
-		Thumbprint:         formatThumbprint(certFingerprintSHA1(cert), formatter),
-		Thumbprint256:      formatThumbprint(certFingerprintSHA256(cert), formatter),
+		SerialNumber:       formatSerialNumber(cert.SerialNumber, cif),
+		Thumbprint:         formatThumbprint(certFingerprintSHA1(cert, cif.Lower), cif.Formatter),
+		Thumbprint256:      formatThumbprint(certFingerprintSHA256(cert, cif.Lower), cif.Formatter),
 		IsCA:               cert.IsCA,
 		SelfSigned:         isSelfSigned(cert),
-		SubjectKeyID:       hex.EncodeToString(cert.SubjectKeyId),
-		AuthorityKeyID:     hex.EncodeToString(cert.AuthorityKeyId),
+		SubjectKeyID:       formatKey(cert.SubjectKeyId, cif),
+		AuthorityKeyID:     formatKey(cert.AuthorityKeyId, cif),
 		DNSNames:           append([]string(nil), cert.DNSNames...),
 		KeyUsage:           keyUsageList(cert.KeyUsage),
 		ExtendedKeyUsage:   extKeyUsageList(cert.ExtKeyUsage),
@@ -106,8 +111,8 @@ func GetCertInfo(cert *x509.Certificate, formatter string) CertInfo {
 	return info
 }
 
-func QueryCertInfo(cert *x509.Certificate, query string, formatter string) ([]byte, error) {
-	info := GetCertInfo(cert, formatter)
+func QueryCertInfo(cert *x509.Certificate, query string, cif CertInfoFormatting) ([]byte, error) {
+	info := GetCertInfo(cert, cif)
 
 	data, err := json.Marshal(info)
 	if err != nil {
@@ -159,9 +164,9 @@ func LogChainSummary(chain []*x509.Certificate) []string {
 }
 
 // LogCertInfo prints details of the given certificate.
-func LogCertInfo(cert *x509.Certificate, formatter string) []string {
+func LogCertInfo(cert *x509.Certificate, cif CertInfoFormatting) []string {
 	var logs []string
-	info := GetCertInfo(cert, formatter)
+	info := GetCertInfo(cert, cif)
 
 	logs = append(logs, strings.Repeat("-", 92))
 
@@ -197,14 +202,14 @@ func LogCertInfo(cert *x509.Certificate, formatter string) []string {
 			logs = append(logs, fmt.Sprintf(
 				"SKID%s: %s",
 				criticalSuffix(isCritical),
-				hex.EncodeToString(cert.SubjectKeyId),
+				info.SubjectKeyID,
 			))
 
 		case "2.5.29.35":
 			logs = append(logs, fmt.Sprintf(
 				"AKID%s: %s",
 				criticalSuffix(isCritical),
-				hex.EncodeToString(cert.AuthorityKeyId),
+				info.AuthorityKeyID,
 			))
 
 		case "2.5.29.17":
@@ -420,15 +425,21 @@ func friendlyExtKeyUsage(oid asn1.ObjectIdentifier) string {
 
 // certFingerprintSHA1 returns the SHA-1 fingerprint of the complete
 // DER-encoded certificate.
-func certFingerprintSHA1(cert *x509.Certificate) string {
+func certFingerprintSHA1(cert *x509.Certificate, lower bool) string {
 	fp := sha1.Sum(cert.Raw)
+	if lower {
+		return hex.EncodeToString(fp[:])
+	}
 	return strings.ToUpper(hex.EncodeToString(fp[:]))
 }
 
 // certFingerprintSHA256 returns the SHA-256 fingerprint of the
 // complete DER-encoded certificate.
-func certFingerprintSHA256(cert *x509.Certificate) string {
+func certFingerprintSHA256(cert *x509.Certificate, lower bool) string {
 	fp := sha256.Sum256(cert.Raw)
+	if lower {
+		return hex.EncodeToString(fp[:])
+	}
 	return strings.ToUpper(hex.EncodeToString(fp[:]))
 }
 
@@ -526,13 +537,29 @@ func extKeyUsageList(usages []x509.ExtKeyUsage) []string {
 	return result
 }
 
-func formatSerialNumber(serial *big.Int) string {
-	serialString := fmt.Sprintf("%x", serial)
+func formatSerialNumber(serial *big.Int, cif CertInfoFormatting) string {
+	var serialString string
+	if cif.Lower {
+		serialString = fmt.Sprintf("%x", serial)
+	} else {
+		serialString = fmt.Sprintf("%X", serial)
+	}
 	if len(serialString) > 0 && serial.BitLen() > 0 && serial.BitLen()%8 == 0 {
 		serialString = "00" + serialString
 	}
 	return serialString
 }
+
+func formatKey(src []byte, cif CertInfoFormatting) string {
+	var keyString string
+	if cif.Lower {
+		keyString = hex.EncodeToString(src)
+	} else {
+		keyString = strings.ToUpper(hex.EncodeToString(src))
+	}
+	return keyString
+}
+
 func formatThumbprint(thumbprint string, formatter string) string {
 	if formatter == "" {
 		return thumbprint

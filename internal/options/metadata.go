@@ -10,6 +10,7 @@ type MetadataOptions struct {
 	OutputFile          string
 	Password            string
 	ThumbprintFormatter string
+	Lower               bool
 	Verbose             bool
 }
 

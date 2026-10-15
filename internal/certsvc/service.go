@@ -496,7 +496,7 @@ func loadBinaryCertsFromFile(path string, pass string) ([]*x509.Certificate, err
 		sorted, sortErr := x509extras.SortCertificateChain(derCerts[:])
 		if sortErr != nil {
 			for _, dc := range derCerts {
-				certinfo.LogCertInfo(dc, "")
+				certinfo.LogCertInfo(dc, certinfo.CertInfoFormatting{Formatter: ""})
 			}
 			return nil, sortErr
 		}
@@ -589,8 +589,11 @@ func (c *CertificateService) Metadata(opts options.MetadataOptions) ([]string, e
 	if len(certs) == 0 {
 		return logs, errors.New("no certificates found in file")
 	}
-
-	info := certinfo.GetCertInfo(certs[0], opts.ThumbprintFormatter)
+	formatter := certinfo.CertInfoFormatting{
+		Formatter: opts.ThumbprintFormatter,
+		Lower:     opts.Lower,
+	}
+	info := certinfo.GetCertInfo(certs[0], formatter)
 
 	data, err := json.MarshalIndent(info, "", "  ")
 	if err != nil {
@@ -732,6 +735,11 @@ func (c *CertificateService) Extract(opts options.ExtractOptions) ([]string, err
 func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error) {
 	var logs []string
 	if len(opts.Certificates) > 0 {
+		formatter := certinfo.CertInfoFormatting{
+			Formatter: opts.ThumbprintFormatter,
+			Lower:     opts.Lower,
+		}
+
 		for _, path := range opts.Certificates {
 			format := certformat.CertificateFormat.Detect(path)
 			switch format {
@@ -740,7 +748,7 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error)
 				if err == nil {
 					// handle query if present
 					if opts.Query != "" {
-						result, err := certinfo.QueryCertInfo(certs[0], opts.Query, opts.ThumbprintFormatter)
+						result, err := certinfo.QueryCertInfo(certs[0], opts.Query, formatter)
 						if err != nil {
 							return logs, err
 						}
@@ -749,7 +757,7 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error)
 					}
 					if !opts.ShortSummary {
 						for _, cert := range certs {
-							logs = append(logs, certinfo.LogCertInfo(cert, opts.ThumbprintFormatter)...)
+							logs = append(logs, certinfo.LogCertInfo(cert, formatter)...)
 						}
 					}
 					logs = append(logs, strings.Repeat("-", 92))
@@ -764,7 +772,7 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error)
 				if err == nil {
 					// handle query if present
 					if opts.Query != "" {
-						result, err := certinfo.QueryCertInfo(certs[0], opts.Query, opts.ThumbprintFormatter)
+						result, err := certinfo.QueryCertInfo(certs[0], opts.Query, formatter)
 						if err != nil {
 							return logs, err
 						}
@@ -773,7 +781,7 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error)
 					}
 					if !opts.ShortSummary {
 						for _, cert := range certs {
-							logs = append(logs, certinfo.LogCertInfo(cert, opts.ThumbprintFormatter)...)
+							logs = append(logs, certinfo.LogCertInfo(cert, formatter)...)
 						}
 					}
 					logs = append(logs, strings.Repeat("-", 92))
@@ -796,6 +804,11 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error)
 		logs = append(logs, certinfo.LogCsrInfo(csr)...)
 	}
 	if len(opts.URLs) > 0 {
+		formatter := certinfo.CertInfoFormatting{
+			Formatter: opts.ThumbprintFormatter,
+			Lower:     opts.Lower,
+		}
+
 		for _, urlString := range opts.URLs {
 			if !strings.HasPrefix(urlString, "http") {
 				urlString = "https://" + urlString
@@ -822,7 +835,7 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error)
 				}
 				// handle query if present
 				if opts.Query != "" {
-					result, err := certinfo.QueryCertInfo(certs[0], opts.Query, opts.ThumbprintFormatter)
+					result, err := certinfo.QueryCertInfo(certs[0], opts.Query, formatter)
 					if err != nil {
 						return logs, err
 					}
@@ -831,7 +844,7 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error)
 				}
 				if !opts.ShortSummary {
 					for _, cert := range certs {
-						logs = append(logs, certinfo.LogCertInfo(cert, opts.ThumbprintFormatter)...)
+						logs = append(logs, certinfo.LogCertInfo(cert, formatter)...)
 					}
 				}
 				logs = append(logs, strings.Repeat("-", 92))
@@ -844,6 +857,11 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error)
 		}
 	}
 	if len(opts.Hosts) > 0 {
+		formatter := certinfo.CertInfoFormatting{
+			Formatter: opts.ThumbprintFormatter,
+			Lower:     opts.Lower,
+		}
+
 		logs = append(logs, "reading certificates from host(s)")
 		for k, v := range opts.Hosts {
 			if !strings.HasPrefix(k, "http") {
@@ -868,7 +886,7 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error)
 				}
 				// handle query if present
 				if opts.Query != "" {
-					result, err := certinfo.QueryCertInfo(certs[0], opts.Query, opts.ThumbprintFormatter)
+					result, err := certinfo.QueryCertInfo(certs[0], opts.Query, formatter)
 					if err != nil {
 						return logs, err
 					}
@@ -877,7 +895,7 @@ func (c *CertificateService) GetInfo(opts options.InfoOptions) ([]string, error)
 				}
 				if !opts.ShortSummary {
 					for _, cert := range certs {
-						logs = append(logs, certinfo.LogCertInfo(cert, opts.ThumbprintFormatter)...)
+						logs = append(logs, certinfo.LogCertInfo(cert, formatter)...)
 					}
 				}
 				logs = append(logs, strings.Repeat("-", 92))
