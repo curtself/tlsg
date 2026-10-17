@@ -445,7 +445,7 @@ func loadCsrFromFile(path string) (*x509.CertificateRequest, error) {
 	}
 	block, _ := pem.Decode(pemBytes)
 	if block != nil {
-		if block.Type != "CERTIFICATE REQUEST" {
+		if block.Type != "CERTIFICATE REQUEST" && block.Type != "NEW CERTIFICATE REQUEST" {
 			//fmt.Printf("failed to get CSR, instead got %s\n", block.Type)
 			return nil, errors.New("bad PEM block type")
 		}
