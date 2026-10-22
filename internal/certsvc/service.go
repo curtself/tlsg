@@ -296,8 +296,8 @@ func (c *CertificateService) FinishCSR(opts options.FinishOptions) (*models.PFXd
 					if opts.Verbose {
 						fmt.Printf("Adding cert to chain (%s)\n", cert.Subject.CommonName)
 					}
-					//chain = append(chain, cert)
-					chain = append([]*x509.Certificate{cert}, chain...)
+					chain = append(chain, cert)
+					//chain = append([]*x509.Certificate{cert}, chain...)
 				}
 			}
 		}
