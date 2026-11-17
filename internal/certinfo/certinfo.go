@@ -184,6 +184,7 @@ func LogCertInfo(cert *x509.Certificate, cif CertInfoFormatting) []string {
 	logs = append(logs, fmt.Sprintf("Serial Number: %s", info.SerialNumber))
 	logs = append(logs, fmt.Sprintf("Thumbprint: %s", info.Thumbprint))
 	logs = append(logs, fmt.Sprintf("Thumbprint 256: %s", info.Thumbprint256))
+	logs = append(logs, fmt.Sprintf("Public Key: %s %d bit", info.PublicKeyAlgorithm, info.PublicKeySize))
 
 	for _, ext := range cert.Extensions {
 		oid := ext.Id.String()
